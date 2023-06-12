@@ -8,6 +8,7 @@ Created on Wed Jun  7 09:56:45 2023
 
 import edsd
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 def f1(X) :
@@ -20,8 +21,12 @@ def f1(X) :
         return 0
   
 bounds = [[-0.8, -0.8, -0.8], [0.8, 0.8, 0.8]]
+
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+
 clf = edsd.edsd(f1, X0=[[0, 0, 0], [0.5, 0.5, 0.5]], bounds=bounds,  processes=2, 
-                N1 = 100, svc=dict(C = 1000))
+                N1 = 100, svc=dict(C = 100), animate = True)
 
 clf.draw()
 

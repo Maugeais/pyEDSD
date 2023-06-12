@@ -81,8 +81,7 @@ class svcEDSD(svm.SVC):
         verts -= bounds[1]
         
         
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
+        ax = plt.gca()
         ax.plot_trisurf(verts[:, 0], verts[:, 1], faces, verts[:, 2], alpha=0.5, lw=0, antialiased=True)
         
         if scatter : 
