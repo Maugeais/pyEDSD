@@ -25,16 +25,16 @@ from skimage import measure
 
 class svcEDSD(svm.SVC):
     
-    def draw(self, h):
+    def draw(self):
         
         if (len(self.bounds[0]) == 2) : 
-            self.draw2d(h)
+            self.draw2d()
             
         elif (len(self.bounds[0]) == 3) : 
-            self.draw3d(h)
+            self.draw3d(h=0.05)
 
 
-    def draw2d(self, h, scatter = True) :
+    def draw2d(self, scatter = True) :
             
         X = self.trainingSet
         y = self.predict(X)
@@ -70,7 +70,6 @@ class svcEDSD(svm.SVC):
         plt.ylim(self.bounds[0][1], self.bounds[1][1])
         if scatter :
             plt.scatter(X[:, 0], X[:, 1], c=y, cmap=plt.cm.coolwarm, marker = 'x', alpha =0.5) 
-        plt.show()
         
     def draw3d(self, h, scatter = True) :
             
@@ -102,7 +101,6 @@ class svcEDSD(svm.SVC):
         if scatter : 
             ax.scatter(X[:, 0], X[:, 1], X[:, 2], c=y, cmap=plt.cm.coolwarm)
         plt.tight_layout()
-        plt.show()    
         
         
     def random(self, id=0, N=1) :
@@ -230,7 +228,7 @@ def edsd(func, X0=[], bounds=[], N0 = 10, N1 = 10, processes = 1, animate = Fals
         
     bounds = [np.array(x) for x in bounds]    
     
-    # Ajout de points aléatoire uniform dans bounds
+    # Ajout de points aléatoires uniform dans bounds
     for n in range(N0) :
         
         x = bounds[0]+(bounds[1]-bounds[0])*np.random.rand(len(bounds[0]))
@@ -241,17 +239,14 @@ def edsd(func, X0=[], bounds=[], N0 = 10, N1 = 10, processes = 1, animate = Fals
     clf = svm.SVC(kernel=kernel, gamma='scale', C=C).fit(X, y)
     clf.bounds = bounds
     clf.__class__ = svcEDSD
-    
-    if len(bounds[0] != 2) :
-        animate = False
-    if animate :
-        ax = plt.gca()
-        plt.xlim(bounds[0][0], bounds[1][0])
-        plt.ylim(bounds[0][1], bounds[1][1])
-    # Recherche de points sur les zéros
+
+    if len(bounds[0]) != 2 :
+        animate = False       
     
     n = 0
-    while n < N1 :
+    
+    ax = plt.gca()
+    while n < N1//processes :
         
         if processes == 1 :
             
@@ -266,36 +261,22 @@ def edsd(func, X0=[], bounds=[], N0 = 10, N1 = 10, processes = 1, animate = Fals
                     
                     X.append(result)
                     y.append(func(result))
-        
-        
-        
+              
                 
         clf = svm.SVC(kernel='rbf', gamma='scale', C=C).fit(X, y)
         clf.bounds = bounds
         clf.__class__ = svcEDSD
-        # if animate :
-        #     ax.set_aspect(1)
-        #     plt.xlim(bounds[0][0], bounds[1][0])
-        #     plt.ylim(bounds[0][1], bounds[1][1])
-            
-        #     DecisionBoundaryDisplay.from_estimator(
-        #         clf,
-        #         np.array(X),
-        #         ax=ax,
-        #         grid_resolution=100,
-        #         plot_method="contour",
-        #         colors="k",
-        #         levels=[-1, 0, 1],
-        #         alpha=0.5,
-        #         linestyles=["--", "-", "--"],
-        #     )
-        #     plt.savefig('/tmp/img'+format(n, '05d')+'.jpg', dpi=100)
-        #     ax.clear()
-            
-     
+        clf.trainingSet = np.array(X)
+
         
-        
-        n += processes
+        if animate :
+            
+            clf.draw()
+
+            plt.savefig('/tmp/img'+format(n, '05d')+'.jpg', dpi=100)
+            ax.clear()
+            
+        n += 1
             
     if animate :
         import os 
@@ -304,7 +285,6 @@ def edsd(func, X0=[], bounds=[], N0 = 10, N1 = 10, processes = 1, animate = Fals
             
     ### Add methods and data to class            
                 
-    clf.trainingSet = np.array(X)
 
 
    

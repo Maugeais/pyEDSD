@@ -35,7 +35,8 @@ bounds = [[-2, -2], [2, 2]]
 import time
 
 t0 = time.time()
-clf = edsd.edsd(f2, X0=[[-0.5, 0], [0.5, 0], [1, 1]], bounds=bounds, processes=2, N1 = 1000, C = 1000, animate = False) 
+clf = edsd.edsd(f2, X0=[[-0.5, 0], [0.5, 0], [1, 1]], bounds=bounds, processes=2, 
+                N1 = 100, C = 1000, animate = True) 
 print(time.time()-t0)
 
 print('len(X) = ',len(clf.trainingSet))
