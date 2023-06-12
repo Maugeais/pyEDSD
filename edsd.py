@@ -25,40 +25,26 @@ from skimage import measure
 
 class svcEDSD(svm.SVC):
     
-    def draw(self):
+    def draw(self, grid_resolution = 100):
         
         if (len(self.bounds[0]) == 2) : 
-            self.draw2d()
+            self.draw2d(grid_resolution = grid_resolution)
             
         elif (len(self.bounds[0]) == 3) : 
-            self.draw3d(h=0.05)
+            self.draw3d(grid_resolution = grid_resolution)
 
 
-    def draw2d(self, scatter = True) :
+    def draw2d(self, grid_resolution = 100, scatter = True) :
             
         X = self.trainingSet
         y = self.predict(X)
-        bounds = self.bounds
-        
-        # create a mesh to plot in
-        # x_min, x_max = bounds[0][0], bounds[1][0]
-        # y_min, y_max = bounds[0][1], bounds[1][1]
-        # xx, yy = np.meshgrid(np.arange(x_min, x_max, h),
-        #                      np.arange(y_min, y_max, h))
-    
-    
-        # Z = self.predict(np.c_[xx.ravel(), yy.ravel()])
-    
-        # # Put the result into a color plot
-        # Z = Z.reshape(xx.shape)
-        # plt.contourf(xx, yy, Z, cmap=plt.cm.coolwarm, alpha=0.8)
  
         ax = plt.gca()
         DecisionBoundaryDisplay.from_estimator(
             self,
             self.trainingSet,
             ax=ax,
-            grid_resolution=100,
+            grid_resolution=grid_resolution,
             plot_method="contour",
             colors="k",
             levels=[-1, 0, 1],
@@ -71,7 +57,7 @@ class svcEDSD(svm.SVC):
         if scatter :
             plt.scatter(X[:, 0], X[:, 1], c=y, cmap=plt.cm.coolwarm, marker = 'x', alpha =0.5) 
         
-    def draw3d(self, h, scatter = True) :
+    def draw3d(self, grid_resolution = 10, scatter = True) :
             
         X = self.trainingSet
         y = self.predict(X)
@@ -80,6 +66,7 @@ class svcEDSD(svm.SVC):
         
         # create a mesh to plot in
         x_min, x_max = bounds[0][0], bounds[1][0]
+        h = (x_max-x_min)/grid_resolution
         y_min, y_max = bounds[0][1], bounds[1][1]
         z_min, z_max = bounds[0][2], bounds[1][2]
         xx, yy, zz = np.meshgrid(np.arange(x_min, x_max, h),
@@ -175,7 +162,7 @@ def dist(x, X) :
 
 # Il faut au moins un point dans chaque classe    
 def edsd(func, X0=[], bounds=[], N0 = 10, N1 = 10, processes = 1, animate = False,
-         C=1.0, kernel='rbf', degree=3, gamma='auto', coef0=0.0, shrinking=True, probability=False, tol=0.001, cache_size=200, class_weight=None, verbose=False, max_iter=-1, decision_function_shape=None, random_state=None) :
+         svc={}) :
     """ Explicit Design space decomposition
     
     Parameters :
@@ -195,6 +182,11 @@ def edsd(func, X0=[], bounds=[], N0 = 10, N1 = 10, processes = 1, animate = Fals
         
             number of points to be added to the training set, 
             chosen near the decision function 
+            
+        processes : int, optional (default = 1)
+            
+             if processes > 1, then the commputation is paralellized, and the SVC is updated
+            only after "processes" points on the boundary have been found
             
         params* : all the parameters of an SVC (cf . sklearn.svm.SVC)
     
@@ -236,11 +228,11 @@ def edsd(func, X0=[], bounds=[], N0 = 10, N1 = 10, processes = 1, animate = Fals
         y.append(func(x))
         
         
-    clf = svm.SVC(kernel=kernel, gamma='scale', C=C).fit(X, y)
+    clf = svm.SVC(**svc).fit(X, y)
     clf.bounds = bounds
     clf.__class__ = svcEDSD
 
-    if len(bounds[0]) != 2 :
+    if len(bounds[0]) > 3 :
         animate = False       
     
     n = 0
@@ -263,7 +255,7 @@ def edsd(func, X0=[], bounds=[], N0 = 10, N1 = 10, processes = 1, animate = Fals
                     y.append(func(result))
               
                 
-        clf = svm.SVC(kernel='rbf', gamma='scale', C=C).fit(X, y)
+        clf = svm.SVC(**svc).fit(X, y)
         clf.bounds = bounds
         clf.__class__ = svcEDSD
         clf.trainingSet = np.array(X)
@@ -282,13 +274,7 @@ def edsd(func, X0=[], bounds=[], N0 = 10, N1 = 10, processes = 1, animate = Fals
         import os 
         os.system("ffmpeg -r 10 -i /tmp/img%05d.jpg -vcodec mpeg4 -y movie.mp4")       
         os.system("rm /tmp/img*.jpg")       
-            
-    ### Add methods and data to class            
-                
-
-
-   
-    
+              
     return(clf)
     
     

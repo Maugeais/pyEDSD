@@ -20,8 +20,8 @@ def f1(X) :
         return 0
   
 bounds = [[-0.8, -0.8, -0.8], [0.8, 0.8, 0.8]]
-clf = edsd.edsd(f1, X0=[[0, 0, 0], [0.5, 0.5, 0.5]], bounds=bounds, N1 = 1000, C = 100)  
-h = .1  # step size in the mesh
+clf = edsd.edsd(f1, X0=[[0, 0, 0], [0.5, 0.5, 0.5]], bounds=bounds,  processes=2, 
+                N1 = 100, svc=dict(C = 1000))
 
-clf.draw(h)
+clf.draw()
 
