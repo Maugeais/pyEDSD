@@ -20,6 +20,11 @@
             number of points to be added to the training set, 
             chosen near the decision function 
             
+        processes : int, optional (default = 1)
+        
+            if processes > 1, then the commputation is paralellized, and the SVC is updated
+            only after "processes" points on the boundary have been found
+            
         params* : all the parameters of an SVC (cf . sklearn.svm.SVC)
     
     Returns : 

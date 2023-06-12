@@ -16,6 +16,8 @@ from scipy.optimize import minimize
 from scipy.spatial.distance import pdist
 
 from sklearn.inspection import DecisionBoundaryDisplay
+import multiprocessing
+import time
 
 
 from skimage import measure
@@ -103,10 +105,12 @@ class svcEDSD(svm.SVC):
         plt.show()    
         
         
-    def random(self, N) :
+    def random(self, id=0, N=1) :
         n = 0 
-        
+                
         X=  []
+                
+        np.random.seed((2**3*id+time.time_ns())%2**32)
         
         while n < N :
         
@@ -121,10 +125,12 @@ class svcEDSD(svm.SVC):
             # Si on est dans les bounds
             if all([(res.x[i] > self.bounds[0][i]) and (res.x[i] < self.bounds[1][i]) for i in range(len(self.bounds[0]))]) :
                 X.append(list(res.x))
+                
+                if N == 1 :
+                    return(res.x)
             
                 n+=1
-                
-                
+        
         return(X)  
 
     def diameter_estimate(self, N = None) :
@@ -170,7 +176,7 @@ def dist(x, X) :
     
 
 # Il faut au moins un point dans chaque classe    
-def edsd(func, X0=[], bounds=[], N0 = 10, N1 = 10, animate = False,
+def edsd(func, X0=[], bounds=[], N0 = 10, N1 = 10, processes = 1, animate = False,
          C=1.0, kernel='rbf', degree=3, gamma='auto', coef0=0.0, shrinking=True, probability=False, tol=0.001, cache_size=200, class_weight=None, verbose=False, max_iter=-1, decision_function_shape=None, random_state=None) :
     """ Explicit Design space decomposition
     
@@ -217,6 +223,7 @@ def edsd(func, X0=[], bounds=[], N0 = 10, N1 = 10, animate = False,
     X = X0.copy()
     y =[]
     
+    processes = min(multiprocessing.cpu_count(), processes)
     
     for x in X :
         y.append(func(x))
@@ -232,6 +239,8 @@ def edsd(func, X0=[], bounds=[], N0 = 10, N1 = 10, animate = False,
         
         
     clf = svm.SVC(kernel=kernel, gamma='scale', C=C).fit(X, y)
+    clf.bounds = bounds
+    clf.__class__ = svcEDSD
     
     if len(bounds[0] != 2) :
         animate = False
@@ -243,40 +252,50 @@ def edsd(func, X0=[], bounds=[], N0 = 10, N1 = 10, animate = False,
     
     n = 0
     while n < N1 :
-        x0 = bounds[0]+(bounds[1]-bounds[0])*np.random.rand(len(bounds[0]))
         
-        decision = lambda x : clf.decision_function([x])**2 #+1/(1+dist(x, X)**2)
+        if processes == 1 :
+            
+            x0 = clf.random()
+            X.append(x0)
+            y.append(func(x0))
+        
+        else : 
+            with multiprocessing.Pool(processes) as pool:
+                       
+                for result in pool.map(clf.random, range(processes)):
+                    
+                    X.append(result)
+                    y.append(func(result))
+        
+        
+        
                 
-        res = minimize(decision, x0, method='CG')#, bounds=bounds)
+        clf = svm.SVC(kernel='rbf', gamma='scale', C=C).fit(X, y)
+        clf.bounds = bounds
+        clf.__class__ = svcEDSD
+        # if animate :
+        #     ax.set_aspect(1)
+        #     plt.xlim(bounds[0][0], bounds[1][0])
+        #     plt.ylim(bounds[0][1], bounds[1][1])
+            
+        #     DecisionBoundaryDisplay.from_estimator(
+        #         clf,
+        #         np.array(X),
+        #         ax=ax,
+        #         grid_resolution=100,
+        #         plot_method="contour",
+        #         colors="k",
+        #         levels=[-1, 0, 1],
+        #         alpha=0.5,
+        #         linestyles=["--", "-", "--"],
+        #     )
+        #     plt.savefig('/tmp/img'+format(n, '05d')+'.jpg', dpi=100)
+        #     ax.clear()
+            
+     
         
         
-        # Si on est dans les bounds
-        if all([(res.x[i] > bounds[0][i]) and (res.x[i] < bounds[1][i]) for i in range(len(bounds[0]))]) :
-            
-            if animate :
-                ax.set_aspect(1)
-                plt.xlim(bounds[0][0], bounds[1][0])
-                plt.ylim(bounds[0][1], bounds[1][1])
-                
-                DecisionBoundaryDisplay.from_estimator(
-                    clf,
-                    np.array(X),
-                    ax=ax,
-                    grid_resolution=100,
-                    plot_method="contour",
-                    colors="k",
-                    levels=[-1, 0, 1],
-                    alpha=0.5,
-                    linestyles=["--", "-", "--"],
-                )
-                plt.savefig('/tmp/img'+format(n, '05d')+'.jpg', dpi=100)
-                ax.clear()
-            
-            X.append(list(res.x))
-            y.append(func(res.x))
-            clf = svm.SVC(kernel='rbf', gamma='scale', C=C).fit(X, y)
-            
-            n += 1 
+        n += processes
             
     if animate :
         import os 
@@ -286,9 +305,7 @@ def edsd(func, X0=[], bounds=[], N0 = 10, N1 = 10, animate = False,
     ### Add methods and data to class            
                 
     clf.trainingSet = np.array(X)
-    clf.bounds = bounds
-    
-    clf.__class__ = svcEDSD
+
 
    
     
