@@ -101,7 +101,14 @@ class svcEDSD(svm.SVC):
         
             x0 = self.bounds[0]+(self.bounds[1]-self.bounds[0])*np.random.rand(len(self.bounds[0]))
             
-            decision = lambda x : self.decision_function([x])**2 #+1/(1+dist(x, X)**2)
+            if len(self.classes_) > 1 :
+                        
+                classNumber = np.random.randint(len(self.classes_)*(len(self.classes_)-1)//2)
+                
+                decision = lambda x : self.decision_function([x])[0][classNumber]**2 #+1/(1+dist(x, X)**2)
+            else :
+                
+                decision = lambda x : self.decision_function([x])**2 #+1/(1+dist(x, X)**2)
                     
             res = minimize(decision, x0, method='CG')#, bounds=bounds)
             
@@ -160,7 +167,7 @@ def dist(x, X) :
     
 
 # Il faut au moins un point dans chaque classe    
-def edsd(func, X0=[], bounds=[], N0 = 10, N1 = 10, processes = 1, animate = False,
+def edsd(func, X0=[], bounds=[], N0 = 10, N1 = 10, processes = 1, classes = 1, animate = False,
          svc={}) :
     """ Explicit Design space decomposition
     
@@ -225,6 +232,10 @@ def edsd(func, X0=[], bounds=[], N0 = 10, N1 = 10, processes = 1, animate = Fals
         x = bounds[0]+(bounds[1]-bounds[0])*np.random.rand(len(bounds[0]))
         X.append(list(x))
         y.append(func(x))
+        
+        
+    if classes > 1 :
+        svc["decision_function_shape"]='ovo'
         
         
     clf = svm.SVC(**svc).fit(X, y)

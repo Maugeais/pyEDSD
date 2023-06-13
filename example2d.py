@@ -32,15 +32,10 @@ def f2(X) :
   
 bounds = [[-2, -2], [2, 2]]
 
-import time
-
-t0 = time.time()
 clf = edsd.edsd(f2, X0=[[-0.5, 0], [0.5, 0], [1, 1]], bounds=bounds, processes=4, 
-                N1 = 500, svc=dict(C = 1000), animate = True) 
-print(time.time()-t0)
+                N1 = 500, svc=dict(C = 1000), animate = False) 
 
-print('len(X) = ',len(clf.trainingSet))
 
 plt.figure()
 clf.draw()
-
+plt.show()
