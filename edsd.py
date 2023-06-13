@@ -101,7 +101,7 @@ class svcEDSD(svm.SVC):
         
             x0 = self.bounds[0]+(self.bounds[1]-self.bounds[0])*np.random.rand(len(self.bounds[0]))
             
-            if len(self.classes_) > 1 :
+            if len(self.classes_) > 2 :
                         
                 classNumber = np.random.randint(len(self.classes_)*(len(self.classes_)-1)//2)
                 
