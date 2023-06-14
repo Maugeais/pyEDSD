@@ -18,10 +18,12 @@ from scipy.spatial.distance import pdist
 from sklearn.inspection import DecisionBoundaryDisplay
 import multiprocessing
 import time
+import sys
 
 
 from skimage import measure
 
+colors = ['r', 'g', 'b', 'c', 'm', 'k']
 
 class svcEDSD(svm.SVC):
     
@@ -45,17 +47,23 @@ class svcEDSD(svm.SVC):
             self.trainingSet,
             ax=ax,
             grid_resolution=grid_resolution,
-            plot_method="contour",
-            colors="k",
-            levels=[-1, 0, 1],
+            plot_method="contourf",
+            colors=colors,
+            levels=len(self.classes_),
             alpha=0.5,
-            linestyles=["--", "-", "--"],
+            linestyles=["--", "-", "--"]*len(self.classes_),
         )
         ax.set_aspect(1)
         plt.xlim(self.bounds[0][0], self.bounds[1][0])
         plt.ylim(self.bounds[0][1], self.bounds[1][1])
         if scatter :
-            plt.scatter(X[:, 0], X[:, 1], c=y, cmap=plt.cm.coolwarm, marker = 'x', alpha =0.5) 
+            
+            for i, c in enumerate(self.classes_) :
+                
+                I = np.where(y == c)[0]
+                plt.scatter(X[I, 0], X[I, 1], c=colors[i], cmap=plt.cm.coolwarm, marker = 'x', alpha =0.5, label="class "+str(c)) 
+                
+        plt.legend()
         
     def draw3d(self, grid_resolution = 10, scatter = True) :
             
@@ -102,10 +110,17 @@ class svcEDSD(svm.SVC):
             x0 = self.bounds[0]+(self.bounds[1]-self.bounds[0])*np.random.rand(len(self.bounds[0]))
             
             if len(self.classes_) > 2 :
+                                                
+                if self.decision_function_shape == 'ovo' :
                         
-                classNumber = np.random.randint(len(self.classes_)*(len(self.classes_)-1)//2)
-                
+                    classNumber = np.random.randint((len(self.classes_))*(len(self.classes_)-1)//2)
+                    
+                else :
+                    
+                    classNumber = np.random.randint(len(self.classes_))
+                                        
                 decision = lambda x : self.decision_function([x])[0][classNumber]**2 #+1/(1+dist(x, X)**2)
+                    
             else :
                 
                 decision = lambda x : self.decision_function([x])**2 #+1/(1+dist(x, X)**2)
@@ -116,7 +131,7 @@ class svcEDSD(svm.SVC):
             # Si on est dans les bounds
             if all([(res.x[i] > self.bounds[0][i]) and (res.x[i] < self.bounds[1][i]) for i in range(len(self.bounds[0]))]) :
                 X.append(list(res.x))
-                
+
                 if N == 1 :
                     return(res.x)
             
@@ -164,10 +179,17 @@ def dist(x, X) :
     
     return d
 
+from functools import partial 
+def _parallel_(id = 0, rand=None, func=None) :
+                
+    x = rand(id = id)
+    y = func(x)
     
+    return([x, y])
 
 # Il faut au moins un point dans chaque classe    
-def edsd(func, X0=[], bounds=[], N0 = 10, N1 = 10, processes = 1, classes = 1, animate = False,
+def edsd(func, X0=[], bounds=[], N0 = 10, N1 = 10, processes = 1, classes = 1, 
+         verbose = True, animate = False,
          svc={}) :
     """ Explicit Design space decomposition
     
@@ -220,27 +242,48 @@ def edsd(func, X0=[], bounds=[], N0 = 10, N1 = 10, processes = 1, classes = 1, a
     y =[]
     
     processes = min(multiprocessing.cpu_count(), processes)
-    
-    for x in X :
-        y.append(func(x))
-        
+     
     bounds = [np.array(x) for x in bounds]    
-    
+   
     # Ajout de points aléatoires uniform dans bounds
+    
+    if verbose :
+        print("Creation of first set")
+        
     for n in range(N0) :
         
         x = bounds[0]+(bounds[1]-bounds[0])*np.random.rand(len(bounds[0]))
         X.append(list(x))
-        y.append(func(x))
         
         
-    if classes > 1 :
+    # Calcul des valeurs des fonctions
+    n = 0        
+    with multiprocessing.Pool(processes=processes) as pool:
+                
+        for r in pool.map(func, X):
+            
+            y.append(r)
+            
+            if verbose : 
+                n += 1
+                sys.stdout.write('\r')
+                # the exact output you're looking for:
+                i = int(100*n/len(X))
+                sys.stdout.write("[%-20s] %d%%" % ('='*(i//5), i))
+                sys.stdout.flush()   
+                
+        
+    if classes > 2 :
         svc["decision_function_shape"]='ovo'
         
         
     clf = svm.SVC(**svc).fit(X, y)
     clf.bounds = bounds
     clf.__class__ = svcEDSD
+    
+    
+    if verbose : 
+        print("\nClasses found : ", clf.classes_)
 
     if len(bounds[0]) > 3 :
         animate = False       
@@ -257,28 +300,42 @@ def edsd(func, X0=[], bounds=[], N0 = 10, N1 = 10, processes = 1, classes = 1, a
             y.append(func(x0))
         
         else : 
-            with multiprocessing.Pool(processes) as pool:
-                       
-                for result in pool.map(clf.random, range(processes)):
-                    
-                    X.append(result)
-                    y.append(func(result))
-              
+            
+            # result = clf.random(N=processes)
+            # X.extend(result)
+            result = []
+            
+            with multiprocessing.Pool(processes=processes) as pool:
+                
+                for r in pool.map(partial(_parallel_, rand=clf.random, func=func), range(processes)):
+                      
+                    X.append(r[0])
+                    y.append(r[1])
                 
         clf = svm.SVC(**svc).fit(X, y)
         clf.bounds = bounds
         clf.__class__ = svcEDSD
         clf.trainingSet = np.array(X)
-
         
         if animate :
             
             clf.draw()
 
-            plt.savefig('/tmp/img'+format(n, '05d')+'.jpg', dpi=100)
+            plt.savefig('/tmp/img'+format(n, '05d')+'.jpg', dpi=200)
             ax.clear()
             
+        if verbose : 
+            sys.stdout.write('\r')
+            # the exact output you're looking for:
+            i = int(100*n*processes/N1)
+            sys.stdout.write("[%-20s] %d%%" % ('='*(i//5), i))
+            sys.stdout.flush()
+        
         n += 1
+    
+    if verbose : 
+        print("\nFinal set of classes : ", clf.classes_)
+    
             
     if animate :
         import os 

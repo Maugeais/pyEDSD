@@ -32,7 +32,7 @@ def f2(X) :
   
 bounds = [[-2, -2], [2, 2]]
 
-clf = edsd.edsd(f2, X0=[[-0.5, 0], [0.5, 0], [1, 1]], bounds=bounds, processes=4, 
+clf = edsd.edsd(f2, X0=[[-0.5, 0], [0.5, 0], [1, 1]], bounds=bounds, processes=4, classes = 2, verbose = True, 
                 N1 = 500, svc=dict(C = 1000), animate = False) 
 
 

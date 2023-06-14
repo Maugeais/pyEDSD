@@ -15,7 +15,9 @@ def f1(X) :
     
     r = np.sqrt(X[0]**2+X[1]**2)
     
-    if r > 1 : 
+    if r > 1.5 :
+        return 3
+    elif r > 1 : 
         return 2
     elif r > 0.5 :
         return 1
@@ -34,8 +36,8 @@ def f2(X) :
   
 bounds = [[-2, -2], [2, 2]]
 
-clf = edsd.edsd(f1, X0=[[0, 0], [0.5, 0.5], [1, 1]], bounds=bounds, processes=3, classes =3, 
-                N1 = 500, svc=dict(C = 1000), animate = False) 
+clf = edsd.edsd(f1, X0=[[0, 0], [0.5, 0.5], [1, 1], [1.5, 1.5]], bounds=bounds, processes=4, classes =4, N0 = 0, 
+                N1 = 1000, svc=dict(C = 1000), animate = False) 
 
 
 plt.figure()
