@@ -19,14 +19,17 @@ def f1(X) :
         return 1
     else :
         return 0
-  
-bounds = [[-0.8, -0.8, -0.8], [0.8, 0.8, 0.8]]
-
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
-
-clf = edsd.edsd(f1, X0=[[0, 0, 0], [0.5, 0.5, 0.5]], bounds=bounds,  processes=2, 
-                N1 = 100, svc=dict(C = 100), animate = True)
-
-clf.draw()
+    
+if __name__ == "__main__" :
+        
+      
+    bounds = [[-0.8, -0.8, -0.8], [0.8, 0.8, 0.8]]
+    
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    
+    clf = edsd.edsd(f1, X0=[[0, 0, 0], [0.5, 0.5, 0.5]], bounds=bounds,  processes=4, 
+                    N1 = 100, svc=dict(C = 100), animate = False)
+    
+    clf.draw()
 

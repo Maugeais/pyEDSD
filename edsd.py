@@ -42,6 +42,7 @@ class svcEDSD(svm.SVC):
         y = self.predict(X)
  
         ax = plt.gca()
+        print(len(self.classes_))
         DecisionBoundaryDisplay.from_estimator(
             self,
             self.trainingSet,
@@ -49,9 +50,9 @@ class svcEDSD(svm.SVC):
             grid_resolution=grid_resolution,
             plot_method="contourf",
             colors=colors,
-            levels=len(self.classes_),
+            levels=len(self.classes_)-2,
             alpha=0.5,
-            linestyles=["--", "-", "--"]*len(self.classes_),
+            # linestyles=["--"]*len(self.classes_),
         )
         ax.set_aspect(1)
         plt.xlim(self.bounds[0][0], self.bounds[1][0])
@@ -144,7 +145,7 @@ class svcEDSD(svm.SVC):
         if N == None :
             N = 10**len(self.bounds[0])
         
-        X = self.random(N)
+        X = self.random(N=N)
         
         return(max(pdist(X)))
     
@@ -153,9 +154,19 @@ class svcEDSD(svm.SVC):
         if N == None :
             N = 10**len(self.bounds[0])
     
-        X = np.array(self.random(N))
+        X = np.array(self.random(N=N))
         
         return([np.array([min(X[:, 0]), min(X[:, 1])]), np.array([max(X[:, 0]), max(X[:, 1])])])
+    
+    def distFrom(self, P=[], N=None) :
+        
+        if N == None :
+            N = 10**len(self.bounds[0])
+    
+        X = np.array(self.random(N=N))
+        
+        plt.scatter(*P)
+        return(min(np.linalg.norm(X-np.array(P), axis=1)))
     
     def volume(self, N=None) :
         
@@ -172,12 +183,6 @@ class svcEDSD(svm.SVC):
         
         return (V*(1-y.sum()/len(y)))
 
-    
-def dist(x, X) :
-    
-    d = min([np.linalg.norm(x-z) for z in X])**2
-    
-    return d
 
 from functools import partial 
 def _parallel_(id = 0, rand=None, func=None) :

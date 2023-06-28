@@ -33,14 +33,17 @@ def f2(X) :
         return(1)
     else :
         return 0    
-  
-bounds = [[-2, -2], [2, 2]]
-
-clf = edsd.edsd(f1, X0=[[0, 0], [0.5, 0.5], [1, 1], [1.5, 1.5]], bounds=bounds, processes=4, classes =4, N0 = 0, 
-                N1 = 1000, svc=dict(C = 1000), animate = False) 
-
-
-plt.figure()
-clf.draw()
-plt.show()
+    
+if __name__ == "__main__" :
+        
+      
+    bounds = [[-2, -2], [2, 2]]
+    
+    clf = edsd.edsd(f1, X0=[[0, 0], [0.5, 0.5], [1, 1], [1.5, 1.5]], bounds=bounds, processes=4, classes =4, N0 = 0, 
+                    N1 = 1000, svc=dict(C = 1000), animate = False) 
+    
+    
+    plt.figure()
+    clf.draw()
+    plt.show()
 
