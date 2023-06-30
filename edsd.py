@@ -42,7 +42,6 @@ class svcEDSD(svm.SVC):
         y = self.predict(X)
  
         ax = plt.gca()
-        print(len(self.classes_))
         DecisionBoundaryDisplay.from_estimator(
             self,
             self.trainingSet,
@@ -97,85 +96,100 @@ class svcEDSD(svm.SVC):
             ax.scatter(X[:, 0], X[:, 1], X[:, 2], c=y, cmap=plt.cm.coolwarm)
         plt.tight_layout()
         
+    def _random(self, id=0) :
         
-    def random(self, id=0, N=1) :
-        n = 0 
-                
-        X=  []
-                
-        np.random.seed((2**3*id+time.time_ns())%2**32)
-        
-        while n < N :
-        
-        
-            x0 = self.bounds[0]+(self.bounds[1]-self.bounds[0])*np.random.rand(len(self.bounds[0]))
+        np.random.seed((2**3*id+time.time_ns())%(2**32))
             
-            if len(self.classes_) > 2 :
-                                                
-                if self.decision_function_shape == 'ovo' :
-                        
-                    classNumber = np.random.randint((len(self.classes_))*(len(self.classes_)-1)//2)
+        if len(self.classes_) > 2 :
+                                            
+            if self.decision_function_shape == 'ovo' :
                     
-                else :
-                    
-                    classNumber = np.random.randint(len(self.classes_))
-                                        
-                decision = lambda x : self.decision_function([x])[0][classNumber]**2 #+1/(1+dist(x, X)**2)
-                    
+                classNumber = np.random.randint((len(self.classes_))*(len(self.classes_)-1)//2)
+                
             else :
                 
-                decision = lambda x : self.decision_function([x])**2 #+1/(1+dist(x, X)**2)
-                    
+                classNumber = np.random.randint(len(self.classes_))
+                                    
+            decision = lambda x : self.decision_function([x])[0][classNumber]**2 #+1/(1+dist(x, X)**2)
+                
+        else :
+            
+            decision = lambda x : self.decision_function([x])**2 #+1/(1+dist(x, X)**2)
+            
+        while True : 
+            
+            x0 = self.bounds[0]+(self.bounds[1]-self.bounds[0])*np.random.rand(len(self.bounds[0]))
+            
             res = minimize(decision, x0, method='CG')#, bounds=bounds)
             
             
             # Si on est dans les bounds
             if all([(res.x[i] > self.bounds[0][i]) and (res.x[i] < self.bounds[1][i]) for i in range(len(self.bounds[0]))]) :
-                X.append(list(res.x))
+                
+                return(res.x)
 
-                if N == 1 :
-                    return(res.x)
+    def resetRandomPool(self) :
+        
+        self._randomPool = []
+        
+    def random(self, size=1, processes = 1) :
+ 
+        if size == 1 : 
             
-                n+=1
+            return(self._random())
+      
+        if not hasattr(self, '_randomPool') :
+            
+            self._randomPool = []
+            
+        newSize = max(size-len(self._randomPool), 0)
+               
+        with multiprocessing.Pool(processes=processes) as pool:
         
-        return(X)  
+            for r in pool.map(partial(_parallel_, rand=self._random), range(newSize)):
+                    
+                self._randomPool.append(r)
+                
+        I = np.random.randint(0, len(self._randomPool), size=size)
+                
+        return([self._randomPool[i] for i in I])
 
-    def diameter_estimate(self, N = None) :
+    def diameter_estimate(self, size_random = None) :
         
-        if N == None :
-            N = 10**len(self.bounds[0])
+        if size_random == None :
+            size_random = 10**len(self.bounds[0])
         
-        X = self.random(N=N)
+        X = self.random(size=size_random)
         
         return(max(pdist(X)))
     
-    def boundingbox_estimate(self, N = None) :
+    def boundingbox_estimate(self, size_random = None) :
         
-        if N == None :
-            N = 10**len(self.bounds[0])
+        if size_random == None :
+            size_random = 10**len(self.bounds[0])
     
-        X = np.array(self.random(N=N))
+        X = np.array(self.random(size=size_random))
         
         return([np.array([min(X[:, 0]), min(X[:, 1])]), np.array([max(X[:, 0]), max(X[:, 1])])])
     
-    def distFrom(self, P=[], N=None) :
+    def distFrom(self, P=[], size_random=None) :
         
-        if N == None :
-            N = 10**len(self.bounds[0])
+        if size_random == None :
+            size_random = 10**len(self.bounds[0])
     
-        X = np.array(self.random(N=N))
+        X = np.array(self.random(size=size_random))
         
         plt.scatter(*P)
         return(min(np.linalg.norm(X-np.array(P), axis=1)))
     
-    def volume(self, N=None) :
+    def volume(self, size_random=None) :
         
-        if N == None :
-            N = 10**len(self.bounds[0])
+        if size_random == None :
+            size_random = 10**len(self.bounds[0])
             
         bounds = self.bounds #self.boundingbox_estimate()
     
-        X = bounds[0]+(bounds[1]-bounds[0])*np.random.rand(N, len(self.bounds[0]))
+        X = bounds[0]+(bounds[1]-bounds[0])*np.random.rand(size_random, len(self.bounds[0]))
         
         y = self.predict(X)
         
@@ -188,9 +202,12 @@ from functools import partial
 def _parallel_(id = 0, rand=None, func=None) :
                 
     x = rand(id = id)
-    y = func(x)
+    if func != None :
+        y = func(x)
+        return([x, y])
     
-    return([x, y])
+    else :
+        return(x)
 
 # Il faut au moins un point dans chaque classe    
 def edsd(func, X0=[], bounds=[], N0 = 10, N1 = 10, processes = 1, classes = 1, 
@@ -300,7 +317,7 @@ def edsd(func, X0=[], bounds=[], N0 = 10, N1 = 10, processes = 1, classes = 1,
         
         if processes == 1 :
             
-            x0 = clf.random()
+            x0 = clf._random()
             X.append(x0)
             y.append(func(x0))
         
@@ -312,7 +329,7 @@ def edsd(func, X0=[], bounds=[], N0 = 10, N1 = 10, processes = 1, classes = 1,
             
             with multiprocessing.Pool(processes=processes) as pool:
                 
-                for r in pool.map(partial(_parallel_, rand=clf.random, func=func), range(processes)):
+                for r in pool.map(partial(_parallel_, rand=clf._random, func=func), range(processes)):
                       
                     X.append(r[0])
                     y.append(r[1])

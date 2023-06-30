@@ -22,7 +22,7 @@ def f1(X) :
     
 if __name__ == "__main__" :
         
-      
+    
     bounds = [[-0.8, -0.8, -0.8], [0.8, 0.8, 0.8]]
     
     fig = plt.figure()

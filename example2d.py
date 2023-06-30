@@ -33,14 +33,18 @@ def f2(X) :
 if __name__ == "__main__" :
 
     bounds = [[-2, -2], [2, 2]]
+    
+    t0 = time.time()
 
     clf = edsd.edsd(f2, X0=[[-0.5, 0], [0.5, 0], [1, 1]], bounds=bounds, processes=4, classes = 2, verbose = True,
                     N1 = 500, svc=dict(C = 1000), animate = False)
+    
+    print("Temps de calcul", time.time()-t0)
 
 
     plt.figure()
     clf.draw()
     
-    # print(clf.distFrom([0.5, 0]))
+    print(clf.distFrom([0.5, 0]))
     
     plt.show()
