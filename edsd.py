@@ -18,7 +18,7 @@ from scipy.spatial.distance import pdist
 from sklearn.inspection import DecisionBoundaryDisplay
 import multiprocessing
 import time
-import sys
+import sys, pickle
 
 
 from skimage import measure
@@ -53,7 +53,7 @@ class svcEDSD(svm.SVC):
             alpha=0.5,
             # linestyles=["--"]*len(self.classes_),
         )
-        ax.set_aspect(1)
+        # ax.set_aspect(1)
         plt.xlim(self.bounds[0][0], self.bounds[1][0])
         plt.ylim(self.bounds[0][1], self.bounds[1][1])
         if scatter :
@@ -96,9 +96,38 @@ class svcEDSD(svm.SVC):
             ax.scatter(X[:, 0], X[:, 1], X[:, 2], c=y, cmap=plt.cm.coolwarm)
         plt.tight_layout()
         
+        
+    def chgRandomBounds(self, X, error = 0.05) :
+        """ Change the bounds for the random operations
+        
+            if X is a set of coordinates then
+            if X is a class then
+            
+            the error term is used .... """
+            
+        if not hasattr(self, '_randBounds') :
+            
+            self._randBounds = self.bounds.copy()
+            
+        if X in self.classes_ :
+            
+            X = self.classBounds[X]
+            
+        d = [X[1][j]-X[0][j] for j in range(len(X))]
+            
+        self._randBounds = [np.array([max(self.bounds[0][j], X[0][j]-error*d[j]) for j in range(len(X))]),
+                                     np.array([min(self.bounds[1][j], X[1][j]+error*d[j]) for j in range(len(X))])]
+                    
+        
     def _random(self, id=0) :
         
+        """ Main random function, it should not be called directly"""
+        
         np.random.seed((2**3*id+time.time_ns())%(2**32))
+        
+        if not hasattr(self, '_randBounds') :
+            
+            self._randBounds = self.bounds.copy()
             
         if len(self.classes_) > 2 :
                                             
@@ -116,23 +145,32 @@ class svcEDSD(svm.SVC):
             
             decision = lambda x : self.decision_function([x])**2 #+1/(1+dist(x, X)**2)
             
+        n = 0
+                        
         while True : 
             
-            x0 = self.bounds[0]+(self.bounds[1]-self.bounds[0])*np.random.rand(len(self.bounds[0]))
-            
+            x0 = self._randBounds[0]+(self._randBounds[1]-self._randBounds[0])*np.random.rand(len(self._randBounds[0]))
+                        
             res = minimize(decision, x0, method='CG')#, bounds=bounds)
-            
-            
-            # Si on est dans les bounds
-            if all([(res.x[i] > self.bounds[0][i]) and (res.x[i] < self.bounds[1][i]) for i in range(len(self.bounds[0]))]) :
+             
+            # If the result is within the bounds
+            if all([(res.x[i] > self._randBounds[0][i]) and (res.x[i] < self._randBounds[1][i]) for i in range(len(self._randBounds[0]))]) :
                 
                 return(res.x)
+            
+            n += 1
+            
+            if n > 100 :
+                print("Error in teh generation of the random points, try ...")
+                raise Exception('random')
 
     def resetRandomPool(self) :
         
         self._randomPool = []
         
-    def random(self, size=1, processes = 1) :
+    def random(self, size=1, processes = 1, verbose = False) :
+        
+        """ PArallelisation of the random function, and fills the random pool"""
  
         if size == 1 : 
             
@@ -143,17 +181,26 @@ class svcEDSD(svm.SVC):
             self._randomPool = []
             
         newSize = max(size-len(self._randomPool), 0)
-               
-        with multiprocessing.Pool(processes=processes) as pool:
         
+        n = 0
+         
+        with multiprocessing.Pool(processes=processes) as pool:
+                    
             for r in pool.map(partial(_parallel_, rand=self._random), range(newSize)):
                     
                 self._randomPool.append(r)
+
+                if verbose : 
+                    n += 1
+                    advBar(int(100*n/newSize))  
+                    
+        if verbose :
+            print("")
                 
         I = np.random.randint(0, len(self._randomPool), size=size)
                 
         return([self._randomPool[i] for i in I])
-
+    
     def diameter_estimate(self, size_random = None) :
         
         if size_random == None :
@@ -209,6 +256,21 @@ def _parallel_(id = 0, rand=None, func=None) :
     else :
         return(x)
 
+def advBar(i) :
+    sys.stdout.write('\r')
+    sys.stdout.write("[%-20s] %d%%" % ('='*(i//5), i))
+    sys.stdout.flush()  
+    
+    
+def save(clf, filename) :
+    with open(filename, 'wb') as file:
+        pickle.dump(clf, file) 
+
+def load(filename) :
+    with open(filename, 'rb') as file:
+        res = pickle.load(file)     
+    return(res)
+    
 # Il faut au moins un point dans chaque classe    
 def edsd(func, X0=[], bounds=[], N0 = 10, N1 = 10, processes = 1, classes = 1, 
          verbose = True, animate = False,
@@ -288,12 +350,7 @@ def edsd(func, X0=[], bounds=[], N0 = 10, N1 = 10, processes = 1, classes = 1,
             
             if verbose : 
                 n += 1
-                sys.stdout.write('\r')
-                # the exact output you're looking for:
-                i = int(100*n/len(X))
-                sys.stdout.write("[%-20s] %d%%" % ('='*(i//5), i))
-                sys.stdout.flush()   
-                
+                advBar(int(100*n/len(X)))
         
     if classes > 2 :
         svc["decision_function_shape"]='ovo'
@@ -302,10 +359,12 @@ def edsd(func, X0=[], bounds=[], N0 = 10, N1 = 10, processes = 1, classes = 1,
     clf = svm.SVC(**svc).fit(X, y)
     clf.bounds = bounds
     clf.__class__ = svcEDSD
-    
+    clf.trainingSet = np.array(X)
     
     if verbose : 
         print("\nClasses found : ", clf.classes_)
+        print("Number of points in each class :", [str(c) + ':' + str(len(np.where(y==c)[0])) for c in clf.classes_])
+            
 
     if len(bounds[0]) > 3 :
         animate = False       
@@ -314,7 +373,7 @@ def edsd(func, X0=[], bounds=[], N0 = 10, N1 = 10, processes = 1, classes = 1,
     
     ax = plt.gca()
     while n < N1//processes :
-        
+                
         if processes == 1 :
             
             x0 = clf._random()
@@ -327,17 +386,35 @@ def edsd(func, X0=[], bounds=[], N0 = 10, N1 = 10, processes = 1, classes = 1,
             # X.extend(result)
             result = []
             
-            with multiprocessing.Pool(processes=processes) as pool:
+            try :
+            
+                with multiprocessing.Pool(processes=processes) as pool:
+                    
+                    for r in pool.map(partial(_parallel_, rand=clf._random, func=func), range(processes)):
+                        
+                        X.append(r[0])
+                        y.append(r[1])
+#             except KeyboardInterrupt:
+#                 
+#                 print('houla', "fin")
+            # except Exception as e:
+            #     print('toto', e)
+            except BaseException as error:
                 
-                for r in pool.map(partial(_parallel_, rand=clf._random, func=func), range(processes)):
-                      
-                    X.append(r[0])
-                    y.append(r[1])
+                print(error)
+                clf = svm.SVC(**svc).fit(X, y)
+                clf.bounds = bounds
+                clf.__class__ = svcEDSD
+                clf.trainingSet = np.array(X)
+                
+                break
                 
         clf = svm.SVC(**svc).fit(X, y)
         clf.bounds = bounds
         clf.__class__ = svcEDSD
         clf.trainingSet = np.array(X)
+        
+        
         
         if animate :
             
@@ -347,14 +424,24 @@ def edsd(func, X0=[], bounds=[], N0 = 10, N1 = 10, processes = 1, classes = 1,
             ax.clear()
             
         if verbose : 
-            sys.stdout.write('\r')
-            # the exact output you're looking for:
-            i = int(100*n*processes/N1)
-            sys.stdout.write("[%-20s] %d%%" % ('='*(i//5), i))
-            sys.stdout.flush()
+            advBar(int(100*n*processes/N1))
         
         n += 1
-    
+        
+        
+    # Get the bounds for all the classes in a dictionnary
+    clf.classBounds = dict()
+        
+    for c in clf.classes_ :
+        
+        I = np.where(y == c)[0]
+                
+        # clf.classBounds[c] = [np.array([min([X[i][j] for i in I]), max([X[i][0] for i in I])]) for j in range(len(X[0]))]
+        # a = np.array([min([X[i][j] for j in range(len(X[0]))]) for i in I])
+        # print(a)
+        clf.classBounds[c] = [np.array([min([X[i][j] for i in I]) for j in range(len(X[0]))]), 
+                                np.array([max([X[i][j] for i in I]) for j in range(len(X[0]))])]  
+                                      
     if verbose : 
         print("\nFinal set of classes : ", clf.classes_)
     
