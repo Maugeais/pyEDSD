@@ -6,7 +6,7 @@ Created on Wed Jun 28 10:57:46 2023
 @author: maugeais
 """
 
-import edsd
+import pyEDSD as edsd
 import numpy as np
 import matplotlib.pyplot as plt
 import time, scipy

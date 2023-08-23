@@ -6,7 +6,7 @@ Created on Wed Jun  7 09:56:45 2023
 @author: maugeais
 """
 
-import edsd
+import pyEDSD as edsd
 import numpy as np
 import matplotlib.pyplot as plt
 import time
@@ -36,7 +36,7 @@ if __name__ == "__main__" :
     
     t0 = time.time()
 
-    clf = edsd.edsd(f2, X0=[[-0.5, 0], [0.5, 0], [1, 1]], bounds=bounds, processes=4, classes = 2, verbose = True,
+    clf = edsd.edsd(f1, X0=[[-0.5, 0], [0.5, 0], [1, 1]], bounds=bounds, processes=4, classes = 2, verbose = True,
                     N1 = 500, svc=dict(C = 1000, gamma = 0.01), animate = False)
     
     print("Temps de calcul", time.time()-t0)

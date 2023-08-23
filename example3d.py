@@ -6,7 +6,7 @@ Created on Wed Jun  7 09:56:45 2023
 @author: maugeais
 """
 
-import edsd
+import pyEDSD as edsd
 import numpy as np
 import matplotlib.pyplot as plt
 
