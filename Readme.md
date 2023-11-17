@@ -1,4 +1,4 @@
-# EDSD, beta version 0.1
+# pyEDSD, beta version 0.1
 
 *  Explicit Design space decomposition
     
