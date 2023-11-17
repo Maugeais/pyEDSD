@@ -33,7 +33,7 @@ if __name__ == "__main__" :
     
     clf.draw()
 
-    #clf.contour3d(scatter=False)
+    clf.contour3d(scatter=False)
     
     plt.show()
 

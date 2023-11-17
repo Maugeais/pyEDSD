@@ -20,7 +20,7 @@ import multiprocessing
 import time
 import sys, pickle
 
-
+import warnings
 from skimage import measure
 
 colors = ['r', 'g', 'b', 'c', 'm', 'k']
@@ -34,23 +34,28 @@ def plot_implicit(ax, fn, bbox=(-2.5,2.5)):
     A = np.linspace(xmin, xmax, 100) # resolution of the contour
     B = np.linspace(xmin, xmax, 15) # number of slices
     A1,A2 = np.meshgrid(A,A) # grid on which the contour is plotted
+    
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", message="No contour levels were found within the data range.") 
+    
+    
 
-    for z in B: # plot contours in the XY plane
-        X,Y = A1,A2
-        Z = fn(X,Y,z)
-        cset = ax.contour(X, Y, Z+z, [z], zdir='z')
-        # [z] defines the only level to plot for this contour for this value of z
-
-    for y in B: # plot contours in the XZ plane
-        X,Z = A1,A2
-        Y = fn(X,y,Z)
-        cset = ax.contour(X, Y+y, Z, [y], zdir='y')
-
-    for x in B: # plot contours in the YZ plane
-        Y,Z = A1,A2
-        X = fn(x,Y,Z)
-        cset = ax.contour(X+x, Y, Z, [x], zdir='x')
-
+        for z in B: # plot contours in the XY plane
+            X,Y = A1,A2
+            Z = fn(X,Y,z)
+            cset = ax.contour(X, Y, Z+z, [z], zdir='z')
+            # [z] defines the only level to plot for this contour for this value of z
+    
+        for y in B: # plot contours in the XZ plane
+            X,Z = A1,A2
+            Y = fn(X,y,Z)
+            cset = ax.contour(X, Y+y, Z, [y], zdir='y')
+    
+        for x in B: # plot contours in the YZ plane
+            Y,Z = A1,A2
+            X = fn(x,Y,Z)
+            cset = ax.contour(X+x, Y, Z, [x], zdir='x')
+    
 
     ax.set_zlim3d(zmin,zmax)
     ax.set_xlim3d(xmin,xmax)
@@ -96,6 +101,52 @@ class svcEDSD(svm.SVC):
                 
         plt.legend()
         
+    def contour3d(self, grid_resolution = 10, scatter = True) :
+            
+        X = self.trainingSet
+        y = self.predict(X)
+        bounds = self.bounds
+    
+        
+        # create a mesh to plot in
+        x_min, x_max = bounds[0][0], bounds[1][0]
+        y_min, y_max = bounds[0][1], bounds[1][1]
+        z_min, z_max = bounds[0][2], bounds[1][2]
+        
+        def f(x, y, z) :
+            
+            if type(x) != np.ndarray :
+                
+                Y = y.ravel()
+                Z = z.ravel()
+                X = x + 0*Z
+                ref = y.shape
+                
+            if type(y) != np.ndarray :
+                
+                X = x.ravel()
+                Z = z.ravel()
+                Y = y + 0*Z
+                ref = x.shape
+                
+            if type(z) != np.ndarray :
+                
+                Y = y.ravel()
+                X = x.ravel()
+                Z = z + 0*X
+                ref = x.shape
+                
+                
+            return(self.decision_function(np.c_[X, Y, Z]).reshape(ref))
+        
+        ax = plt.gca()
+        plot_implicit(ax, f, bbox=(-2.5,2.5))
+        
+        
+        if scatter : 
+            ax.scatter(X[:, 0], X[:, 1], X[:, 2], c=y, cmap=plt.cm.coolwarm)
+        plt.tight_layout()
+        
     def draw3d(self, grid_resolution = 10, scatter = True) :
             
         X = self.trainingSet
@@ -111,9 +162,7 @@ class svcEDSD(svm.SVC):
         z_min, z_max = bounds[0][2], bounds[1][2]
         hz = (z_max-z_min)/grid_resolution
         xx, yy, zz = np.mgrid[x_min:x_max:hx, y_min:y_max:hy, z_min:z_max:hz]
-        
-        
-        
+    
         
         F = self.decision_function(np.c_[xx.ravel(), yy.ravel(), zz.ravel()]).reshape(xx.shape)
             
