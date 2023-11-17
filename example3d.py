@@ -6,14 +6,14 @@ Created on Wed Jun  7 09:56:45 2023
 @author: maugeais
 """
 
-import edsd
+import pyEDSD as edsd
 import numpy as np
 import matplotlib.pyplot as plt
 
 
 def f1(X) :
     
-    r = np.sqrt(X[0]**2+X[1]**2+X[2]**2)
+    r = np.sqrt((X[0]-0.5*X[2])**2+X[1]**2+0.3*(X[2]-0.1*X[1])**2)
     
     if r > 0.5 : 
         return 1
@@ -23,7 +23,7 @@ def f1(X) :
 if __name__ == "__main__" :
         
     
-    bounds = [[-0.8, -0.8, -0.8], [0.8, 0.8, 0.8]]
+    bounds = [[-2, -2, -2], [2, 2, 2]]
     
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
@@ -32,4 +32,8 @@ if __name__ == "__main__" :
                     N1 = 100, svc=dict(C = 100), animate = False)
     
     clf.draw()
+
+    #clf.contour3d(scatter=False)
+    
+    plt.show()
 
