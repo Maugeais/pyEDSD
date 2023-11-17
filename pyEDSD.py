@@ -25,6 +25,37 @@ from skimage import measure
 
 colors = ['r', 'g', 'b', 'c', 'm', 'k']
 
+def plot_implicit(ax, fn, bbox=(-2.5,2.5)):
+    ''' create a plot of an implicit function
+    fn  ...implicit function (plot where fn==0)
+    bbox ..the x,y,and z limits of plotted interval'''
+    xmin, xmax, ymin, ymax, zmin, zmax = bbox*3
+    
+    A = np.linspace(xmin, xmax, 100) # resolution of the contour
+    B = np.linspace(xmin, xmax, 15) # number of slices
+    A1,A2 = np.meshgrid(A,A) # grid on which the contour is plotted
+
+    for z in B: # plot contours in the XY plane
+        X,Y = A1,A2
+        Z = fn(X,Y,z)
+        cset = ax.contour(X, Y, Z+z, [z], zdir='z')
+        # [z] defines the only level to plot for this contour for this value of z
+
+    for y in B: # plot contours in the XZ plane
+        X,Z = A1,A2
+        Y = fn(X,y,Z)
+        cset = ax.contour(X, Y+y, Z, [y], zdir='y')
+
+    for x in B: # plot contours in the YZ plane
+        Y,Z = A1,A2
+        X = fn(x,Y,Z)
+        cset = ax.contour(X+x, Y, Z, [x], zdir='x')
+
+
+    ax.set_zlim3d(zmin,zmax)
+    ax.set_xlim3d(xmin,xmax)
+    ax.set_ylim3d(ymin,ymax)
+
 class svcEDSD(svm.SVC):
     
     def draw(self, grid_resolution = 100):
@@ -74,18 +105,19 @@ class svcEDSD(svm.SVC):
         
         # create a mesh to plot in
         x_min, x_max = bounds[0][0], bounds[1][0]
-        h = (x_max-x_min)/grid_resolution
+        hx = (x_max-x_min)/grid_resolution
         y_min, y_max = bounds[0][1], bounds[1][1]
+        hy = (y_max-y_min)/grid_resolution
         z_min, z_max = bounds[0][2], bounds[1][2]
-        xx, yy, zz = np.meshgrid(np.arange(x_min, x_max, h),
-                             np.arange(y_min, y_max, h),
-                             np.arange(z_min, z_max, h))
+        hz = (z_max-z_min)/grid_resolution
+        xx, yy, zz = np.mgrid[x_min:x_max:hx, y_min:y_max:hy, z_min:z_max:hz]
+        
         
         
         
         F = self.decision_function(np.c_[xx.ravel(), yy.ravel(), zz.ravel()]).reshape(xx.shape)
             
-        verts, faces, normals, values = measure.marching_cubes(F, 0, spacing=[h, h, h])
+        verts, faces, normals, values = measure.marching_cubes(F, 0, spacing=[hx, hy, hz])
         verts -= bounds[1]
         
         
