@@ -15,14 +15,7 @@ def f1(X) :
     
     r = np.sqrt(X[0]**2+X[1]**2)
     
-    if r > 1.5 :
-        return 3
-    elif r > 1 : 
-        return 2
-    elif r > 0.5 :
-        return 1
-    else :
-        return 0
+    return(min(3, int(2*r)))
     
 def f2(X) :
     
@@ -44,6 +37,6 @@ if __name__ == "__main__" :
     
     
     plt.figure()
-    clf.draw()
+    clf.draw(grid_resolution = 1000, scatter=False)
     plt.show()
 

@@ -13,27 +13,29 @@ import matplotlib.pyplot as plt
 
 def f1(X) :
     
-    r = np.sqrt((X[0]-0.5*X[2])**2+X[1]**2+0.3*(X[2]-0.1*X[1])**2)
-    
-    if r > 0.5 : 
-        return 1
-    else :
-        return 0
+    r = np.sqrt((X[0])**2+X[1]**2+(X[2])**2)
+
+    return(r > 1)
     
 if __name__ == "__main__" :
         
     
     bounds = [[-2, -2, -2], [2, 2, 2]]
+    v = []
     
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
+    # fig = plt.figure()
+    # ax = fig.add_subplot(111, projection='3d')
     
-    clf = edsd.edsd(f1, X0=[[0, 0, 0], [0.5, 0.5, 0.5]], bounds=bounds,  processes=4, 
-                    N1 = 100, svc=dict(C = 100), animate = False)
+    for N1 in range(100, 150, 100) :
+        clf = edsd.edsd(f1, X0=[[0, 0, 0], [1, 1, 1]], bounds=bounds,  processes=4, 
+                        N1 = N1, svc=dict(C = 1000), animate = False)
     
-    clf.draw()
-
-    clf.contour3d(scatter=False)
+        v.append(4/3*np.pi-clf.volume(False))
+    
+    plt.semilogy(v)
+    plt.grid(True)
+    plt.xlabel("N1")
+    plt.ylabel("Absolute error")
     
     plt.show()
 
