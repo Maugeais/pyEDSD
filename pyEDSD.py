@@ -38,11 +38,14 @@ import scipy.spatial as spatial
 
 class svcEDSD(svm.SVC):
     
-    def draw(self, grid_resolution = 100, scatter = False, fig = None):
+    def draw(self, bounds = None, grid_resolution = 100, scatter = False, fig = None, contour = False):
         """
         Draw the zones and their boundaries obtained by the classifier
         Parameters
         ----------
+        bounds : list of list
+            DESCRIPTION : if None, then the bounds used to draw are those of teh classifier, otherwise
+            define the bounds of the axes
         grid_resolution : int, optional
             DESCRIPTION. resolution of the grid used to draw the contour.
             The default is 100.
@@ -54,20 +57,28 @@ class svcEDSD(svm.SVC):
         None.
 
         """        
+
+        if bounds == None :
+            bounds = self.bounds
+
         if fig == None :
             fig = plt.figure()
 
         if (len(self.bounds[0]) == 2) : 
-            self._draw2d(grid_resolution = grid_resolution, scatter = scatter, fig = fig)
+            self._draw2d(bounds = bounds,  grid_resolution = grid_resolution, scatter = scatter, fig = fig)
             
         elif (len(self.bounds[0]) == 3) : 
-            self._draw3d(grid_resolution = grid_resolution, scatter = scatter, fig = fig)
+
+            if contour :
+                self.contour3d(bounds = bounds, grid_resolution = grid_resolution, scatter = scatter, fig = fig)
+            else :
+                self._draw3d(bounds = bounds, grid_resolution = grid_resolution, scatter = scatter, fig = fig)
 
         else :
             print("Cannot draw in mod than 3d")
 
 
-    def _draw2d(self, grid_resolution = 100, scatter = True, fig = None) :
+    def _draw2d(self, bounds, grid_resolution = 100, scatter = True, fig = None) :
         """
         Draw the zones and their boundaries obtained for a 2d classifier
         Parameters
@@ -102,8 +113,8 @@ class svcEDSD(svm.SVC):
             alpha=0.5,
         )
         # ax.set_aspect(1)
-        plt.xlim(self.bounds[0][0], self.bounds[1][0])
-        plt.ylim(self.bounds[0][1], self.bounds[1][1])
+        plt.xlim(bounds[0][0], bounds[1][0])
+        plt.ylim(bounds[0][1], bounds[1][1])
         if scatter :
             
             for i, c in enumerate(self.classes_) :
@@ -113,7 +124,7 @@ class svcEDSD(svm.SVC):
                 
             plt.legend()
         
-    def contour3d(self, grid_resolution = 10, scatter = True, fig = None) :
+    def contour3d(self, bounds, grid_resolution = 10, scatter = True, fig = None) :
         """
         Draw the contour of a 3d classifier
 
@@ -137,9 +148,7 @@ class svcEDSD(svm.SVC):
         ax = fig.add_subplot(111, projection='3d')
             
         X = self.trainingSet
-        y = self.predict(X)
-        bounds = self.bounds
-    
+        y = self.predict(X)    
         
         # create a mesh to plot in
         x_min, x_max = bounds[0][0], bounds[1][0]
@@ -179,7 +188,7 @@ class svcEDSD(svm.SVC):
             ax.scatter(X[:, 0], X[:, 1], X[:, 2], c=y, cmap=plt.cm.coolwarm)
         plt.tight_layout()
         
-    def _draw3d(self, grid_resolution = 10, scatter = True, fig = None) :
+    def _draw3d(self, bounds, grid_resolution = 10, scatter = True, fig = None) :
         """Draw the zones and their boundaries obtained for a 3d the classifier
         Parameters
         ----------
@@ -199,9 +208,7 @@ class svcEDSD(svm.SVC):
 
             
         X = self.trainingSet
-        y = self.predict(X)
-        bounds = self.bounds
-    
+        y = self.predict(X)    
         
         # create a mesh to plot in
         x_min, x_max = bounds[0][0], bounds[1][0]
@@ -216,7 +223,7 @@ class svcEDSD(svm.SVC):
         F = self.decision_function(np.c_[xx.ravel(), yy.ravel(), zz.ravel()]).reshape(xx.shape)
             
         verts, faces, normals, values = measure.marching_cubes(F, 0, spacing=[hx, hy, hz])
-        verts -= bounds[1]
+        verts += bounds[0]
         
         ax.plot_trisurf(verts[:, 0], verts[:, 1], faces, verts[:, 2], alpha=0.5, lw=0, antialiased=True)
         
@@ -798,10 +805,10 @@ def edsd(func, X0=[], bounds=[], N0 = 10, N1 = 10, processes = 1, classes = 1,
         
     for c in clf.classes_ :
         
-        I = np.where(y == c)[0]
+        I = np.where(clf.trainingSetValues == c)[0]
                 
-        clf.classBounds[c] = [np.array([min([X[i][j] for i in I]) for j in range(len(X[0]))]), 
-                                np.array([max([X[i][j] for i in I]) for j in range(len(X[0]))])]  
+        clf.classBounds[c] = [[min([clf.trainingSet[i][j] for i in I]) for j in range(len(clf.trainingSet[0]))], 
+                                [max([clf.trainingSet[i][j] for i in I]) for j in range(len(clf.trainingSet[0]))]]  
                                       
     if verbose : 
         print("\nFinal set of classes : ", clf.classes_)

@@ -12,18 +12,18 @@ import numpy as np
 
 def f1(X) :
     
-    r = np.sqrt((X[0])**2+X[1]**2+(X[2])**2)
+    r = np.sqrt((X[0]+2)**2+X[1]**2+(X[2]-1+0.5*X[1])**2)
 
     return(r > 1)
     
 if __name__ == "__main__" :
         
     
-    bounds = [[-2, -2, -2], [2, 2, 2]]
+    bounds = [[-4, -4, -4], [4, 4, 4]]
     v = []
     
     
-    clf = edsd.edsd(f1, X0=[[0, 0, 0], [1, 1, 1]], bounds=bounds,  processes=4, 
+    clf = edsd.edsd(f1, X0=[[-2, 0, 1], [1, 1, 1]], bounds=bounds,  processes=4, 
                         N1 = 100, svc=dict(C = 1000))
     
     clf.draw(scatter = True)
