@@ -76,7 +76,7 @@ def _parallel(param, func1, func2=None) :
         return(x)
 
 
-def plot_implicit(ax, fn, bbox=(-2.5,2.5)):
+def plot_implicit(ax, fn, bbox=[[-2.5, -2.5, -2.5], [2.5, 2.5,2.5]]):
     """
     Create a plot of an implicit function using the contour
 
@@ -94,30 +94,29 @@ def plot_implicit(ax, fn, bbox=(-2.5,2.5)):
     None.
 
     """
-    xmin, xmax, ymin, ymax, zmin, zmax = bbox*3
-    
-    A = np.linspace(xmin, xmax, 100) # resolution of the contour
-    B = np.linspace(xmin, xmax, 15) # number of slices
-    A1,A2 = np.meshgrid(A,A) # grid on which the contour is plotted
-    
+    xmin, ymin, zmin = bbox[0]
+    xmax, ymax, zmax = bbox[1]
+
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", message="No contour levels were found within the data range.") 
     
-    
+        Ax = np.linspace(xmin, xmax, 15) # resolution of the contour
+        Ay = np.linspace(ymin, ymax, 15) # resolution of the contour
+        Az = np.linspace(zmin, zmax, 15) # resolution of the contour
 
-        for z in B: # plot contours in the XY plane
-            X,Y = A1,A2
+        X,Y = np.meshgrid(Ax,Ay) # grid on which the contour is plotted
+        for z in Az: # plot contours in the XY plane
             Z = fn(X,Y,z)
             cset = ax.contour(X, Y, Z+z, [z], zdir='z')
             # [z] defines the only level to plot for this contour for this value of z
     
-        for y in B: # plot contours in the XZ plane
-            X,Z = A1,A2
+        X, Z = np.meshgrid(Ax,Az) # grid on which the contour is plotted
+        for y in Ay: # plot contours in the XZ plane
             Y = fn(X,y,Z)
             cset = ax.contour(X, Y+y, Z, [y], zdir='y')
     
-        for x in B: # plot contours in the YZ plane
-            Y,Z = A1,A2
+        Y, Z = np.meshgrid(Ay,Az) # grid on which the contour is plotted
+        for x in Ax: # plot contours in the YZ plane
             X = fn(x,Y,Z)
             cset = ax.contour(X+x, Y, Z, [x], zdir='x')
     

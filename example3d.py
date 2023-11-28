@@ -8,7 +8,6 @@ Created on Wed Jun  7 09:56:45 2023
 
 import pyEDSD as edsd
 import numpy as np
-import matplotlib.pyplot as plt
 
 
 def f1(X) :
@@ -23,19 +22,11 @@ if __name__ == "__main__" :
     bounds = [[-2, -2, -2], [2, 2, 2]]
     v = []
     
-    # fig = plt.figure()
-    # ax = fig.add_subplot(111, projection='3d')
     
-    for N1 in range(100, 150, 100) :
-        clf = edsd.edsd(f1, X0=[[0, 0, 0], [1, 1, 1]], bounds=bounds,  processes=4, 
-                        N1 = N1, svc=dict(C = 1000), animate = False)
+    clf = edsd.edsd(f1, X0=[[0, 0, 0], [1, 1, 1]], bounds=bounds,  processes=4, 
+                        N1 = 100, svc=dict(C = 1000))
     
-        v.append(4/3*np.pi-clf.volume(False))
-    
-    plt.semilogy(v)
-    plt.grid(True)
-    plt.xlabel("N1")
-    plt.ylabel("Absolute error")
-    
-    plt.show()
+    clf.draw(scatter = True)
+
+    clf.show()
 

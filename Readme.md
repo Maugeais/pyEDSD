@@ -1,4 +1,4 @@
-# pyEDSD, beta version 0.1
+# pyEDSD, beta version 0.3.1
 
 *  Explicit Design space decomposition
     
@@ -35,6 +35,11 @@
         
             draw : function(h)
                     displayes the decision bounday together with the training sets
+            volume : function()
+            
+            dist_from : function
+            
+            ...
                     
         2 objects            
         

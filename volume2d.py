@@ -42,22 +42,6 @@ def trifolium(X) :
     return(res > 0)    
 
 
-# def volume(self) :
-    
-#     vol = 0
-    
-#     for simp in self.simplices :
-
-#         M = []
-        
-#         for p in simp[1:] :
-#             M.append(tri.points[p]-tri.points[simp[0]])
-
-            
-#         vol += abs(np.linalg.det(M))
-        
-           
-#     return(vol/2)
     
     
 if __name__ == "__main__" :
@@ -67,11 +51,13 @@ if __name__ == "__main__" :
     t0 = time.time()
 
     clf = edsd.edsd(circle, X0=[[-0.5, 0], [0.5, 0], [1, 1]], bounds=bounds, processes=4, classes = 2, verbose = True,
-                    N1 = 200, svc=dict(C = 1000, gamma = 1), animate = False)
+                    N1 = 200, svc=dict(C = 1000, gamma = 1))
     
     print("Temps de calcul", time.time()-t0)
 
 
     clf.draw()
     
-    print(clf.volume(False))
+    # print(clf.volume(False))
+
+    plt.show()

@@ -20,6 +20,14 @@ import multiprocessing
 import time
 import pickle
 
+
+import os 
+dir_path = os.path.dirname(os.path.realpath(__file__))
+
+import sys
+sys.path.insert(0, dir_path)
+
+
 from skimage import measure
 import tools
 from functools import partial 
@@ -30,7 +38,7 @@ import scipy.spatial as spatial
 
 class svcEDSD(svm.SVC):
     
-    def draw(self, grid_resolution = 100, scatter = False):
+    def draw(self, grid_resolution = 100, scatter = False, fig = None):
         """
         Draw the zones and their boundaries obtained by the classifier
         Parameters
@@ -45,16 +53,21 @@ class svcEDSD(svm.SVC):
         -------
         None.
 
-        """
-        
+        """        
+        if fig == None :
+            fig = plt.figure()
+
         if (len(self.bounds[0]) == 2) : 
-            self._draw2d(grid_resolution = grid_resolution, scatter = scatter)
+            self._draw2d(grid_resolution = grid_resolution, scatter = scatter, fig = fig)
             
         elif (len(self.bounds[0]) == 3) : 
-            self._draw3d(grid_resolution = grid_resolution, scatter = scatter)
+            self._draw3d(grid_resolution = grid_resolution, scatter = scatter, fig = fig)
+
+        else :
+            print("Cannot draw in mod than 3d")
 
 
-    def _draw2d(self, grid_resolution = 100, scatter = True) :
+    def _draw2d(self, grid_resolution = 100, scatter = True, fig = None) :
         """
         Draw the zones and their boundaries obtained for a 2d classifier
         Parameters
@@ -100,7 +113,7 @@ class svcEDSD(svm.SVC):
                 
             plt.legend()
         
-    def contour3d(self, grid_resolution = 10, scatter = True) :
+    def contour3d(self, grid_resolution = 10, scatter = True, fig = None) :
         """
         Draw the contour of a 3d classifier
 
@@ -118,6 +131,10 @@ class svcEDSD(svm.SVC):
 
 
         """
+
+        if fig == None :
+            fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
             
         X = self.trainingSet
         y = self.predict(X)
@@ -155,15 +172,14 @@ class svcEDSD(svm.SVC):
                 
             return(self.decision_function(np.c_[X, Y, Z]).reshape(ref))
         
-        ax = plt.gca()
-        tools.plot_implicit(ax, f, bbox=(-2.5,2.5))
+        tools.plot_implicit(ax, f, bbox=bounds)
         
         
         if scatter : 
             ax.scatter(X[:, 0], X[:, 1], X[:, 2], c=y, cmap=plt.cm.coolwarm)
         plt.tight_layout()
         
-    def _draw3d(self, grid_resolution = 10, scatter = True) :
+    def _draw3d(self, grid_resolution = 10, scatter = True, fig = None) :
         """Draw the zones and their boundaries obtained for a 3d the classifier
         Parameters
         ----------
@@ -178,6 +194,9 @@ class svcEDSD(svm.SVC):
         None.
 
         """
+
+        ax = fig.add_subplot(111, projection='3d')
+
             
         X = self.trainingSet
         y = self.predict(X)
@@ -199,16 +218,17 @@ class svcEDSD(svm.SVC):
         verts, faces, normals, values = measure.marching_cubes(F, 0, spacing=[hx, hy, hz])
         verts -= bounds[1]
         
-        
-        ax = plt.gca()
         ax.plot_trisurf(verts[:, 0], verts[:, 1], faces, verts[:, 2], alpha=0.5, lw=0, antialiased=True)
         
         if scatter : 
             ax.scatter(X[:, 0], X[:, 1], X[:, 2], c=y, cmap=plt.cm.coolwarm)
         plt.tight_layout()
+
+    def show(self) :
+        plt.show()
         
         
-    def chgRandomBounds(self, X, error = 0.05) :
+    def change_random_bounds(self, X, error = 0.05) :
         """
         Change the bounds for the random operations
         
@@ -455,105 +475,30 @@ class svcEDSD(svm.SVC):
         plt.scatter(*P)
         return(min(np.linalg.norm(X-np.array(P), axis=1)))
     
-    def delaunay(self, size_random = None, draw = False) :
+    def volume(self, value, n_boundary = 0, n_interior = 10) :
         """
-    
+        Compute the volume of one region given by the classifier defined by value.
+        For this, a delaunay triangulation is computing using :
+            - the points of the training set
+            - points on the boundary, using the random function
+            - points in the interior, obtained using n_interior**dim points 
+                chosen randomly within the boundaries, and sorted using the classifier
+
         Parameters
         ----------
-        size_random : TYPE, optional
-            DESCRIPTION. The default is None.
-    
+        value : TYPE
+            DESCRIPTION.
+        n_boundary : TYPE, optional
+            DESCRIPTION. The default is 0.
+        n_interior : TYPE, optional
+            DESCRIPTION. The default is 10.
+
         Returns
         -------
         None.
-    
-        """
-        
-        # if size_random == None :
-        #     size_random = 10**len(self.bounds[0])
-            
-        
-        # points = self.random(size_random)
-        
-        # points = np.vstack(points)
-        
-    
-        # self.triangulation = spatial.Delaunay(points)
-        
-        
-        # # Remove simplicies whose centre is outside 
-        
-        # I = [simp for simp in list(self.triangulation.simplices) if self.decision_function([np.mean(self.triangulation.points[simp], axis = 0)]) < 0]
-    
-        # self.triangulation.simplices = I    
-        
-        points = self.trainingSet[np.logical_not(self.trainingSetValues)]
-        
-        
-        
-        # T = self.random(1000)
-        # points = np.concatenate((points, T))
-
-        tri = spatial.Delaunay(points)
-                
-        # Remove simplicies whose centre is outside 
-        I = [simp for simp in list(tri.simplices) if self.decision_function([np.mean(tri.points[simp], axis = 0)]) < 0]
-
-        tri.simplices = I    
-        setattr(spatial._qhull.Delaunay, 'volume', tools.volume)
-        
-        plt.triplot(points[:,0], points[:,1], tri.simplices)
-
-        plt.plot(points[:,0], points[:,1], 'o')
-
-        plt.show()
-
-    
-    def volumeMC(self, size_random=None) :
-        """
-        
-
-        Parameters
-        ----------
-        size_random : TYPE, optional
-            DESCRIPTION. The default is None.
-
-        Returns
-        -------
-        TYPE
-            DESCRIPTION.
 
         """
-        
-        if size_random == None :
-            size_random = 10**len(self.bounds[0])
-            
-        bounds = self.bounds #self.boundingbox_estimate()
     
-        X = bounds[0]+(bounds[1]-bounds[0])*np.random.rand(size_random, len(self.bounds[0]))
-        
-        y = self.predict(X)
-        
-        V = np.prod([bounds[1][i]-bounds[0][i] for i in range(len(bounds[0]))])
-        
-        return (V*(1-y.sum()/len(y)))
-    
-    def volume(self, value, size_random=None) :
-        """
-        
-
-        Parameters
-        ----------
-        size_random : TYPE, optional
-            DESCRIPTION. The default is None.
-
-        Returns
-        -------
-        TYPE
-            DESCRIPTION.
-
-        """
-        
         # Compute a Dalaunay triangulation
         
         # points = clf.trainingSet[np.logical_not(clf.trainingSetValues)]
@@ -564,14 +509,17 @@ class svcEDSD(svm.SVC):
         
 
         # Add points in the interior
-        rand = np.random.uniform(min(self.bounds[0]), max(self.bounds[1]), dim*100**dim).reshape(100**dim, dim)
-        I = (self.decision_function(rand)*val < 0)
+        if n_interior > 0 :
+            rand = np.random.uniform(min(self.bounds[0]), max(self.bounds[1]), dim*n_interior**dim).reshape(n_interior**dim, dim)
+            I = (self.decision_function(rand)*val > 0)
+            
+            points = np.concatenate((points, rand[I]))
         
-        points = np.concatenate((points, rand[I]))
+        # Add points on the boundary
+        if n_boundary > 0 :
+            rand = self.random(n_boundary)
+            points = np.concatenate((points, rand))
         
-        
-        
-
         tri = spatial.Delaunay(points)
                 
         # Remove simplicies whose centre is outside 
@@ -586,7 +534,7 @@ class svcEDSD(svm.SVC):
         #     # ax = fig.add_subplot(111, projection='3d')
         #     plt.scatter(tri.points[:, 0], tri.points[:, 1], tri.points[:, 2])
         #     # spatial.delaunay_plot_2d(tri)
-        plt.triplot(points[:,0], points[:,1], tri.simplices)
+        # plt.triplot(points[:,0], points[:,1], tri.simplices)
     
         #     # # plt.plot(points[:,0], points[:,1], 'o')
     
@@ -597,7 +545,7 @@ class svcEDSD(svm.SVC):
     
     def expand(self, N1, processes = 4, verbose = False, animate = False) :
         """
-        
+        Create a new classifier from the current one by adding N1 new points
 
         Parameters
         ----------
@@ -619,11 +567,9 @@ class svcEDSD(svm.SVC):
         X = self.trainingSet.tolist()
         y = self.trainingSetValues.tolist()
         clf = self
-                
-        ax = plt.gca()
-        
+                        
         while n < N1//processes :
-                    
+                     
             if processes == 1 :
                 
                 x0 = clf._random()
@@ -638,22 +584,20 @@ class svcEDSD(svm.SVC):
                         
                         for r in pool.map(partial(tools._parallel, func1=clf._random, func2=self.func), range(processes)):
                             
-                            X.append(r[0])
-                            y.append(r[1])
-    #             except KeyboardInterrupt:
-    #                 
-    #                 print('houla', "fin")
-                # except Exception as e:
-                #     print('toto', e)
+                            if r[1] != -1 :
+                                X.append(r[0])
+                                y.append(r[1])
+                except KeyboardInterrupt:
+                    print('\nStopping at {}%'.format(100*n*processes/N1))
+                    clf = _fit(self.func, self.svc, self.bounds, X, y)
+                    break
                 except BaseException as error:
-                    
                     print(error)
                     clf = _fit(self.func, self.svc, self.bounds, X, y)
                     
                     break
     
-            clf = _fit(self.func, self.svc, self.bounds, X, y)
-            
+            clf = _fit(self.func, self.svc, self.bounds, X, y)        
                 
             if verbose : 
                 tools._advBar(int(100*n*processes/N1))
@@ -661,19 +605,14 @@ class svcEDSD(svm.SVC):
             n += 1
             
         # # Get the bounds for all the classes in a dictionnary
-        # clf.classBounds = dict()
+        clf.classBounds = dict()
              
-        # for c in clf.classes_ :
+        for c in clf.classes_ :
              
-        #     I = np.where(y == c)[0]
-                     
-        #     # clf.classBounds[c] = [np.array([min([X[i][j] for i in I]), max([X[i][0] for i in I])]) for j in range(len(X[0]))]
-        #     # a = np.array([min([X[i][j] for j in range(len(X[0]))]) for i in I])
-        #     # print(a)
-        #     clf.classBounds[c] = [np.array([min([X[i][j] for i in I]) for j in range(len(X[0]))]), 
-        #                              np.array([max([X[i][j] for i in I]) for j in range(len(X[0]))])]  
-                                 
-            
+            I = np.where(y == c)[0]
+            clf.classBounds[c] = [np.array([min([X[i][j] for i in I]) for j in range(len(X[0]))]), 
+                                      np.array([max([X[i][j] for i in I]) for j in range(len(X[0]))])]  
+                                        
         return(clf)
 
     
@@ -709,13 +648,13 @@ def _fit(func, svc, bounds, X, y) :
     
 def save(clf, filename) :
     """
-    
+    Save the classifier to a pickle file
 
     Parameters
     ----------
-    clf : TYPE
+    clf : svcEDSD
         DESCRIPTION.
-    filename : TYPE
+    filename : string
         DESCRIPTION.
 
     Returns
@@ -723,35 +662,38 @@ def save(clf, filename) :
     None.
 
     """
+    func = clf.func
+    clf.func = None
     with open(filename, 'wb') as file:
         pickle.dump(clf, file) 
+    clf.func = func
+
 
 def load(filename) :
     """
-    
+    Load a classifier
 
     Parameters
     ----------
-    filename : TYPE
+    filename : string
         DESCRIPTION.
 
     Returns
     -------
-    None.
+    svcEDSD
 
     """
     with open(filename, 'rb') as file:
         res = pickle.load(file)     
     return(res)
     
-# Il faut au moins un point dans chaque classe    
 def edsd(func, X0=[], bounds=[], N0 = 10, N1 = 10, processes = 1, classes = 1, 
-         verbose = True, animate = False, svc={}) :
+         verbose = True, svc={}) :
     """ Explicit Design space decomposition
     
     Parameters :
     ----------
-        func : function(n-dimensional vector) -> 0 or 1, function to classify
+        func : function(n-dimensional vector) -> 0 or 1, function to classify, if return of f is -1, then not a class
         X0 : list of n-dimension vectors
             
                 must contain at leat one point in each class
@@ -805,24 +747,34 @@ def edsd(func, X0=[], bounds=[], N0 = 10, N1 = 10, processes = 1, classes = 1,
     
     if verbose :
         print("Creation of first set")
+
+    
         
     for n in range(N0) :
         
         x = bounds[0]+(bounds[1]-bounds[0])*np.random.rand(len(bounds[0]))
         X.append(list(x))
-        
-        
+                
     # Calcul des valeurs des fonctions
     n = 0        
     with multiprocessing.Pool(processes=processes) as pool:
                 
         for r in pool.map(func, X):
-            
             y.append(r)
             
             if verbose : 
                 n += 1
                 tools._advBar(int(100*n/len(X)))
+
+    # Remove the elements in the "error" class
+    I = [i for i in range(len(y)) if y[i] != -1]
+    if len(I) > 0 and verbose :
+        print("\nRemoving {} elements for class -1, stored in sef.removed".format(len(X)-len(I)))
+    
+    removed = [X[i] for i in range(len(y)) if y[i] != -1]   
+
+    X = [X[i] for i in I]
+    y = [y[i] for i in I]
         
     if classes > 2 :
         svc["decision_function_shape"]='ovo'
@@ -831,15 +783,16 @@ def edsd(func, X0=[], bounds=[], N0 = 10, N1 = 10, processes = 1, classes = 1,
     clf = _fit(func, svc, bounds, X, y)
     
     if verbose : 
-        print("\nClasses found : ", clf.classes_)
+        print("Classes found : ", clf.classes_)
         print("Number of points in each class :", [str(c) + ':' + str(len(np.where(y==c)[0])) for c in clf.classes_])
             
-
     if len(bounds[0]) > 3 :
         animate = False       
     
-    clf = clf.expand(N1, processes = processes, verbose = verbose, animate = animate)
-        
+    clf = clf.expand(N1, processes = processes, verbose = verbose)
+
+    clf.removed = removed
+
     # Get the bounds for all the classes in a dictionnary
     clf.classBounds = dict()
         
@@ -852,10 +805,6 @@ def edsd(func, X0=[], bounds=[], N0 = 10, N1 = 10, processes = 1, classes = 1,
                                       
     if verbose : 
         print("\nFinal set of classes : ", clf.classes_)
-    
-            
-    if animate :
-        tools.converr2mp4("/tmp/")
               
     return(clf)
     
