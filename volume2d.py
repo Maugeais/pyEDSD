@@ -58,6 +58,6 @@ if __name__ == "__main__" :
 
     clf.draw()
     
-    # print(clf.volume(False))
+    print(clf.volume(False))
 
     plt.show()

@@ -11,7 +11,7 @@ import warnings
 import sys, os
 
 
-colors = ['r', 'g', 'b', 'm', 'c', 'k']
+colors = ['r', 'g', 'b', 'm', 'c', 'k', 'y', 'r', 'g', 'b', 'm', 'c', 'k', 'y']
 
 def tetrahedron_volume(a, b, c, d):
     return np.abs(np.einsum('ij,ij->i', a-d, np.cross(b-d, c-d))) / 6

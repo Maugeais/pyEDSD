@@ -15,7 +15,8 @@ def f1(X) :
     
     r = np.sqrt(X[0]**2+X[1]**2)
     
-    return(min(3, int(2*r)))
+    if X[1] < 0 : return(0)
+    return(1+min(3, int(2*r)))
     
 def f2(X) :
     
@@ -32,11 +33,10 @@ if __name__ == "__main__" :
       
     bounds = [[-2, -2], [2, 2]]
     
-    clf = edsd.edsd(f1, X0=[[0, 0], [0.5, 0.5], [1, 1], [1.5, 1.5]], bounds=bounds, processes=4, classes =4, N0 = 0, 
-                    N1 = 1000, svc=dict(C = 1000), animate = False) 
+    clf = edsd.edsd(f1, X0=[[0, 0], [0.5, 0.5], [1, 1], [1.5, 1.5]], bounds=bounds, processes=4, classes =5, N0 = 20, 
+                    N1 = 1000, svc=dict(C = 100), neighbours = [[1,2], [2, 3], [3, 4], [0, 1], [0, 2], [0, 3], [0, 4]]) 
     
     
-    plt.figure()
-    clf.draw(grid_resolution = 1000, scatter=False)
+    clf.draw(grid_resolution = 1000, scatter=True)
     plt.show()
 

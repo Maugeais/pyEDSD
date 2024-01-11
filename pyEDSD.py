@@ -33,12 +33,19 @@ import tools
 from functools import partial 
 import scipy.spatial as spatial
 
+try : 
+    from mayavi import mlab
+    is_mayavi = True
+except ImportError:
+    print("Mayavi is not available on your system")
+    is_mayavi = False
 
-
+max_random_gradient = 100 # Maximal number of unconclusive gradient iteration
 
 class svcEDSD(svm.SVC):
     
-    def draw(self, bounds = None, grid_resolution = 100, scatter = False, fig = None, contour = False):
+    def draw(self, bounds = None, grid_resolution = 100, scatter = False, fig = None, 
+             contour = False, mayavi = False, classes = [], ax = None):
         """
         Draw the zones and their boundaries obtained by the classifier
         Parameters
@@ -61,24 +68,28 @@ class svcEDSD(svm.SVC):
         if bounds == None :
             bounds = self.bounds
 
-        if fig == None :
-            fig = plt.figure()
 
         if (len(self.bounds[0]) == 2) : 
-            self._draw2d(bounds = bounds,  grid_resolution = grid_resolution, scatter = scatter, fig = fig)
+            return(self._draw2d(bounds = bounds,  grid_resolution = grid_resolution, scatter = scatter, fig = fig, classes = classes, ax = ax))
             
         elif (len(self.bounds[0]) == 3) : 
 
+            if fig == None :
+                fig = plt.figure()
             if contour :
-                self.contour3d(bounds = bounds, grid_resolution = grid_resolution, scatter = scatter, fig = fig)
+                self.contour3d(bounds = bounds, grid_resolution = grid_resolution, scatter = scatter, fig = fig, classes = classes)
             else :
-                self._draw3d(bounds = bounds, grid_resolution = grid_resolution, scatter = scatter, fig = fig)
+                # if is_mayavi and mayavi:
+                #     self._draw3dMayavi(bounds = bounds, grid_resolution = grid_resolution, scatter = scatter, fig = fig, classes = classes)
+
+                # else :
+                self._draw3d(bounds = bounds, grid_resolution = grid_resolution, scatter = scatter, fig = fig, classes = classes, mayavi = mayavi and is_mayavi)
 
         else :
-            print("Cannot draw in mod than 3d")
+            print("Cannot draw in more than 3d")
 
 
-    def _draw2d(self, bounds, grid_resolution = 100, scatter = True, fig = None) :
+    def _draw2d(self, bounds, grid_resolution = 100, scatter = True, fig = None, classes = [], ax = None) :
         """
         Draw the zones and their boundaries obtained for a 2d classifier
         Parameters
@@ -96,13 +107,13 @@ class svcEDSD(svm.SVC):
         """
         X = self.trainingSet
         y = self.predict(X)
- 
-        ax = plt.gca()
+        
+         
         if len(self.classes_) == 2 :
             levels = 0
         else :
             levels = len(self.classes_)-1
-        DecisionBoundaryDisplay.from_estimator(
+        disp = DecisionBoundaryDisplay.from_estimator(
             self,
             self.trainingSet,
             ax=ax,
@@ -113,18 +124,20 @@ class svcEDSD(svm.SVC):
             alpha=0.5,
         )
         # ax.set_aspect(1)
-        plt.xlim(bounds[0][0], bounds[1][0])
-        plt.ylim(bounds[0][1], bounds[1][1])
+        disp.ax_.set_xlim(bounds[0][0], bounds[1][0])
+        disp.ax_.set_ylim(bounds[0][1], bounds[1][1])
         if scatter :
             
             for i, c in enumerate(self.classes_) :
                 
                 I = np.where(y == c)[0]
-                plt.scatter(X[I, 0], X[I, 1], c=tools.colors[i], marker = 'x', alpha =0.5, label="class "+str(c)) 
+                disp.ax_.scatter(X[I, 0], X[I, 1], c=tools.colors[i], marker = 'x', alpha =0.5, label="class "+str(c)) 
                 
-            plt.legend()
+            disp.ax_.legend()
+            
+        return(disp.ax_)
         
-    def contour3d(self, bounds, grid_resolution = 10, scatter = True, fig = None) :
+    def contour3d(self, bounds, grid_resolution = 10, scatter = True, fig = None, classes = []) :
         """
         Draw the contour of a 3d classifier
 
@@ -188,7 +201,7 @@ class svcEDSD(svm.SVC):
             ax.scatter(X[:, 0], X[:, 1], X[:, 2], c=y, cmap=plt.cm.coolwarm)
         plt.tight_layout()
         
-    def _draw3d(self, bounds, grid_resolution = 10, scatter = True, fig = None) :
+    def _draw3d(self, bounds, grid_resolution = 10, scatter = True, fig = None, classes = [], mayavi = False) :
         """Draw the zones and their boundaries obtained for a 3d the classifier
         Parameters
         ----------
@@ -218,18 +231,101 @@ class svcEDSD(svm.SVC):
         z_min, z_max = bounds[0][2], bounds[1][2]
         hz = (z_max-z_min)/grid_resolution
         xx, yy, zz = np.mgrid[x_min:x_max:hx, y_min:y_max:hy, z_min:z_max:hz]
-    
         
-        F = self.decision_function(np.c_[xx.ravel(), yy.ravel(), zz.ravel()]).reshape(xx.shape)
+        f = self.decision_function(np.c_[xx.ravel(), yy.ravel(), zz.ravel()])
+        if len(classes) == 0 :
             
-        verts, faces, normals, values = measure.marching_cubes(F, 0, spacing=[hx, hy, hz])
-        verts += bounds[0]
+            F = [f.reshape(xx.shape)]
+            
+        else :
+            
+            F =[]
+            for c in classes :
+                
+                F = [f[:, c].reshape(xx.shape)]
+                
+                
+        for f in F :
+            
+            if mayavi :
+                surf = mlab.contour3d(xx, yy, zz, f, contours =[0], colormap='RdYlBu', opacity = 0.5)
+                surf.actor.property.interpolation = 'phong'
+                surf.actor.property.specular = 0.1
+                surf.actor.property.specular_power = 5
+                
+            else :
+                                    
+                verts, faces, normals, values = measure.marching_cubes(f, 0, spacing=[hx, hy, hz])
+                verts += bounds[0]
+                
+                ax.plot_trisurf(verts[:, 0], verts[:, 1], faces, verts[:, 2], alpha=0.5, lw=0, antialiased=True)
+                
+                if scatter : 
+                    ax.scatter(X[:, 0], X[:, 1], X[:, 2], c=y, cmap=plt.cm.coolwarm)
+                plt.tight_layout()
+                
+        if mayavi :
+            # for c in self.classes_ :
+            #     I = np.where(y==c)[0]
+                
+                mlab.points3d(X[:, 0], X[:, 1], X[:, 2], y, scale_factor = 0.1, scale_mode = 'none')
+
         
-        ax.plot_trisurf(verts[:, 0], verts[:, 1], faces, verts[:, 2], alpha=0.5, lw=0, antialiased=True)
+    def _draw3dMayavi(self, bounds, grid_resolution = 10, scatter = True, fig = None, classes = []) :
+        """Draw the zones and their boundaries obtained for a 3d the classifier
+        Parameters
+        ----------
+        grid_resolution : int, optional
+            DESCRIPTION. resolution of the grid used to draw the contour.
+            The default is 100.
+        scatter : bool, optional
+            DESCRIPTION. The default is False.
+
+        Returns
+        -------
+        None.
+
+        """
+
+      
+            
+        X = self.trainingSet
+        y = self.predict(X)    
         
-        if scatter : 
-            ax.scatter(X[:, 0], X[:, 1], X[:, 2], c=y, cmap=plt.cm.coolwarm)
-        plt.tight_layout()
+        # create a mesh to plot in
+        x_min, x_max = bounds[0][0], bounds[1][0]
+        hx = (x_max-x_min)/grid_resolution
+        y_min, y_max = bounds[0][1], bounds[1][1]
+        hy = (y_max-y_min)/grid_resolution
+        z_min, z_max = bounds[0][2], bounds[1][2]
+        hz = (z_max-z_min)/grid_resolution
+        xx, yy, zz = np.mgrid[x_min:x_max:hx, y_min:y_max:hy, z_min:z_max:hz]
+        
+                
+        f = self.decision_function(np.c_[xx.ravel(), yy.ravel(), zz.ravel()])
+        if len(classes) == 0 :
+            
+            F = [f.reshape(xx.shape)]
+            
+        else :
+            
+            F =[]
+            for c in classes :
+                
+                F = [f[:, c].reshape(xx.shape)]
+                
+                
+        for f in F :
+                
+            surf = mlab.contour3d(xx, yy, zz, f, contours =[0], colormap='RdYlBu')
+            
+        # Change the visualization parameters.
+        surf.actor.property.interpolation = 'phong'
+        surf.actor.property.specular = 0.1
+        surf.actor.property.specular_power = 5
+        
+
+        mlab.show()
 
     def show(self) :
         plt.show()
@@ -301,43 +397,73 @@ class svcEDSD(svm.SVC):
             self._randBounds = self.bounds.copy()
             
         if len(self.classes_) > 2 :
+            
                                             
             if self.decision_function_shape == 'ovo' :
                     
-                classNumber = np.random.randint((len(self.classes_))*(len(self.classes_)-1)//2)
+                # classNumber = np.random.randint((len(self.classes_))*(len(self.classes_)-1)//2)
+                classNumber = np.random.choice(self._distances)
                 
             else :
                 
                 classNumber = np.random.randint(len(self.classes_))
                                     
-            decision = lambda x : self.decision_function([x])[0][classNumber]**2 #+1/(1+dist(x, X)**2)
+            decision = lambda x : self.decision_function([x])[0][classNumber]**2 #+1/(1+min(np.linalg.norm(self.trainingSet-x, axis=1)**2))
                 
         else :
             
             decision = lambda x : self.decision_function([x])**2 #+1/(1+dist(x, X)**2)
             
-        n = 0
+        n = m = 0
                         
         while True : 
             
             x0 = self._randBounds[0]+(self._randBounds[1]-self._randBounds[0])*np.random.rand(len(self._randBounds[0]))
                         
-            res = minimize(decision, x0, method='CG')#, bounds=bounds)
-             
-            # If the result is within the bounds
-            if all([(res.x[i] > self._randBounds[0][i]) and (res.x[i] < self._randBounds[1][i]) for i in range(len(self._randBounds[0]))]) :
-                
-                return(res.x)
+            res = minimize(decision, x0, method='CG', options = {})#, bounds=bounds)
             
+            # If the result is within the bounds
+            if res.success and res.fun < 1e-3 and all([(res.x[i] > self._randBounds[0][i]) and (res.x[i] < self._randBounds[1][i]) for i in range(len(self._randBounds[0]))]) :
+                               
+                return(res.x)
+ 
             n += 1
             
-            if n > 100 :
-                print("Error in teh generation of the random points, try ...")
-                raise Exception('random')
+            if n > max_random_gradient :
+                                
+                if len(self.classes_) > 2 :
+                    m += 1
+                    
+                    if m > len(self.classes_) :
+                        
+                        print("Error in the generation of the random points")
+                        raise Exception('random')              
+                    
+                    if self.decision_function_shape == 'ovo' :
+                            
+                        # classNumber = np.random.randint((len(self.classes_))*(len(self.classes_)-1)//2)
+                        classNumber = np.random.choice(self._distances)
+                        
+                    else :
+                        
+                        classNumber = np.random.randint(len(self.classes_))
+                                            
+                    decision = lambda x : self.decision_function([x])[0][classNumber]**2 #+1/(1+min(np.linalg.norm(self.trainingSet-x, axis=1)**2))
+                    
+                    n = 0;
 
-    def reset_random_pool(self) :
+                else :
+                    print("Error in the generation of the random points")
+                    raise Exception('random')     
+
+    def reset_random_pool(self, class_id = 0) :
         """
-        Reset the random pool
+        Reset the random pool of the given class_id
+        
+        Parameters
+        ----------
+        class_id : optional
+            id of the class 
 
         Returns
         -------
@@ -345,9 +471,9 @@ class svcEDSD(svm.SVC):
 
         """
         
-        self._random_pool = []
+        self._random_pool[class_id] = []
         
-    def random(self, size=1, processes = 1, verbose = False) :
+    def random(self, size=1, processes = 1, verbose = False, class_id = 0) :
         """
         Fetch size elements in the random pool. 
         It the pool does not have enough precomputed elements, 
@@ -365,6 +491,8 @@ class svcEDSD(svm.SVC):
         verbose : boolean, optional
             If True, an advanscement bar is displayed in the console.
             The default is False.
+        class_id : optional
+            id of the class 
 
         Returns
         -------
@@ -378,9 +506,12 @@ class svcEDSD(svm.SVC):
       
         if not hasattr(self, '_random_pool') :
             
-            self._random_pool = []
+            self._random_pool = {}
             
-        new_size = max(size-len(self._random_pool), 0)
+        if class_id not in self._random_pool :
+            self._random_pool[class_id] = []
+            
+        new_size = max(size-len(self._random_pool[class_id]), 0)
         
         n = 0
          
@@ -388,7 +519,7 @@ class svcEDSD(svm.SVC):
                     
             for r in pool.map(partial(tools._parallel, func1=self._random), range(new_size)):
                     
-                self._random_pool.append(r)
+                self._random_pool[class_id].append(r)
 
                 if verbose : 
                     n += 1
@@ -397,9 +528,9 @@ class svcEDSD(svm.SVC):
         if verbose :
             print("")
                 
-        I = np.random.randint(0, len(self._random_pool), size=size)
+        I = np.random.randint(0, len(self._random_pool[class_id]), size=size)
                 
-        return([self._random_pool[i] for i in I])
+        return([self._random_pool[class_id][i] for i in I])
     
     def diameter_estimate(self, size_random = None) :
         """
@@ -550,7 +681,7 @@ class svcEDSD(svm.SVC):
         #     pass
         return(tri.volume())
     
-    def expand(self, N1, processes = 4, verbose = False, animate = False) :
+    def expand(self, N1, processes = 4, verbose = False, animate = False,  neighbours = []) :
         """
         Create a new classifier from the current one by adding N1 new points
 
@@ -570,21 +701,31 @@ class svcEDSD(svm.SVC):
         None.
 
         """
+
+        if self.func == None :
+            print("The original function does not exist")
+            return()
         n = 0
         X = self.trainingSet.tolist()
         y = self.trainingSetValues.tolist()
         clf = self
+        
+        
                         
         while n < N1//processes :
-                     
+            
+            if (len(clf.classes_) > 2) :
+                clf._distances = relevant_distances(clf.classes_, neighbours)
+            
+                
             if processes == 1 :
                 
                 x0 = clf._random()
                 X.append(x0)
                 y.append(self.func(x0))
             
-            else : 
-                
+            else :         
+ 
                 try :
                 
                     with multiprocessing.Pool(processes=processes) as pool:
@@ -594,17 +735,19 @@ class svcEDSD(svm.SVC):
                             if r[1] != -1 :
                                 X.append(r[0])
                                 y.append(r[1])
+                                
                 except KeyboardInterrupt:
                     print('\nStopping at {}%'.format(100*n*processes/N1))
                     clf = _fit(self.func, self.svc, self.bounds, X, y)
                     break
+                
                 except BaseException as error:
                     print(error)
                     clf = _fit(self.func, self.svc, self.bounds, X, y)
                     
                     break
     
-            clf = _fit(self.func, self.svc, self.bounds, X, y)        
+            clf = _fit(self.func, self.svc, self.bounds, X, y)    
                 
             if verbose : 
                 tools._advBar(int(100*n*processes/N1))
@@ -622,6 +765,45 @@ class svcEDSD(svm.SVC):
                                         
         return(clf)
 
+def relevant_distances(classes, neighbours) :
+    """
+    Compute the indeces of the distance for the set of neighbouring regieons stored in neighbours
+
+    Parameters
+    ----------
+    classes : np.array
+        array of all the classes found by the svc
+    neighbours : list
+        list of length 2 lists containing the eighbouring regions
+
+    Returns
+    -------
+    list
+
+    """    
+    if len(neighbours) == 0 :
+        return([i for i in range(len(classes))])
+    
+    # Order as a function of classes is details in https://scikit-learn.org/stable/modules/svm.html, Details on multi-class strategies
+    distances = []
+    
+    for n in neighbours :
+        i0 = np.where(classes == n[0])[0]
+        i1 = np.where(classes == n[1])[0]
+        if (len(i0) > 0 and len(i1) > 0) :
+            i0, i1 = min(i0[0], i1[0]), max(i0[0], i1[0])
+        
+            m = 0
+            for j in range(i0) :
+                m += len(classes)-j-1
+                
+            m += i1-i0-1
+            
+            distances.append(m)
+            
+    # print(distances, classes, neighbours)
+                
+    return(distances)
     
 def _fit(func, svc, bounds, X, y) :
     """
@@ -649,8 +831,8 @@ def _fit(func, svc, bounds, X, y) :
     clf.trainingSet = np.array(X)
     clf.trainingSetValues = np.array(y)
     clf.func = func
-    clf.svc = svc    
-
+    clf.svc = svc   
+    
     return(clf)
     
 def save(clf, filename) :
@@ -695,7 +877,7 @@ def load(filename) :
     return(res)
     
 def edsd(func, X0=[], bounds=[], N0 = 10, N1 = 10, processes = 1, classes = 1, 
-         verbose = True, svc={}) :
+         verbose = True, svc={}, neighbours = []) :
     """ Explicit Design space decomposition
     
     Parameters :
@@ -718,7 +900,7 @@ def edsd(func, X0=[], bounds=[], N0 = 10, N1 = 10, processes = 1, classes = 1,
             
         processes : int, optional (default = 1)
             
-             if processes > 1, then the commputation is paralellized, and the SVC is updated
+            if processes > 1, then the commputation is paralellized, and the SVC is updated
             only after "processes" points on the boundary have been found
             
         params* : all the parameters of an SVC (cf . sklearn.svm.SVC)
@@ -745,7 +927,7 @@ def edsd(func, X0=[], bounds=[], N0 = 10, N1 = 10, processes = 1, classes = 1,
 
     X = X0.copy()
     y =[]
-    
+        
     processes = min(multiprocessing.cpu_count(), processes)
      
     bounds = [np.array(x) for x in bounds]    
@@ -777,7 +959,7 @@ def edsd(func, X0=[], bounds=[], N0 = 10, N1 = 10, processes = 1, classes = 1,
     I = [i for i in range(len(y)) if y[i] != -1]
     if len(I) > 0 and verbose :
         print("\nRemoving {} elements for class -1, stored in sef.removed".format(len(X)-len(I)))
-    
+            
     removed = [X[i] for i in range(len(y)) if y[i] != -1]   
 
     X = [X[i] for i in I]
@@ -786,17 +968,14 @@ def edsd(func, X0=[], bounds=[], N0 = 10, N1 = 10, processes = 1, classes = 1,
     if classes > 2 :
         svc["decision_function_shape"]='ovo'
         
-        
     clf = _fit(func, svc, bounds, X, y)
     
     if verbose : 
         print("Classes found : ", clf.classes_)
         print("Number of points in each class :", [str(c) + ':' + str(len(np.where(y==c)[0])) for c in clf.classes_])
-            
-    if len(bounds[0]) > 3 :
-        animate = False       
+        
     
-    clf = clf.expand(N1, processes = processes, verbose = verbose)
+    clf = clf.expand(N1, processes = processes, verbose = verbose, neighbours = neighbours)
 
     clf.removed = removed
 
