@@ -106,41 +106,41 @@ def distribution(X, F) :
     return(np.cumsum(dist)/len(X), indeces)
 
 
-def testFunction(func, N1 = 100, size = 1000, curvature = False, changeBounds = False) :
-
-    bounds = [[-2, -2], [2, 2]]
+def compare_to_ref(func, N1 = 100, size = 1000, curvature = False, label = "", clf = None, ref = []) :
     
     # Computation of edsd
     plt.figure('SVM')
 
-    clf = edsd.edsd(func, X0=[[-0.5, 0], [0.25, 0.25], [0.25, -0.25]], bounds=bounds, processes=4, classes = 2, verbose = True,
-                    N0 = 100, N1 = N1, svc=dict(C = 100), animate = False)
-    
-    clf.draw()
-    
     # Drawing of the parametrisation
     s1, F1 = canonicalParam(func, 2*np.pi, 10000)
 
     plt.plot(F1[:, 0], F1[:, 1])
     
     # Plotting of the probability law against curvature
-    fig=plt.figure("Proba law") #Figure(figsize=(7, 3.5))
+    fig=plt.figure("Distribution") #Figure(figsize=(7, 3.5))
     axis = plt.gca() #fig.add_subplot(1, 1, 1)
     
-    
-    if changeBounds :
-        clf.chgRandomBounds(False)
-    
-    
-    X = clf.random(size=size, processes = 4, verbose = True)
-    
+
+    try :
+        X = clf.random(size=size, processes = 10, verbose = True)
+    except :
+        print(f"Problem with the generation of random points using the generator {label}")
+        return()
+
     dist, I = distribution(X, F1[:-2])
     rand = s1[I]/max(s1)
+
+    if len(ref) == 0 :
+        return(dist)
     
-    distUnif = s1/max(s1)
-    axis.plot(s1, distUnif, label="Uniform distribution")
+    # distUnif = s1/max(s1)
+    # axis.plot(s1, distUnif)
+
+    s1 = np.interp(np.linspace(0, 1, len(ref)), np.linspace(0, 1, len(s1)), s1)
+    dist = np.interp(np.linspace(0, 1, len(ref)), np.linspace(0, 1, len(dist)), dist)
     
-    axis.plot(s1, dist, label="edsd distribution")
+    # axis.plot(ref, dist, label="edsd "+label)
+    axis.plot(s1, dist-ref, label="edsd "+label)
     plt.xlabel("Arc length t")
     plt.ylabel("F(t)")
         
@@ -149,29 +149,34 @@ def testFunction(func, N1 = 100, size = 1000, curvature = False, changeBounds = 
     plt.legend()
     plt.tight_layout()
 
-    if curvature :
-        axisp = axis.twinx()
-        R = np.linalg.norm((F1[2:-1]-2*F1[1:-2]+F1[:-3]), axis=1)/(s1[1:]-s1[:-1])**2
-        axisp.plot(s1[1:],  R, c='r', alpha=  0.5)
+    # if curvature :
+    #     axisp = axis.twinx()
+    #     R = np.linalg.norm((F1[2:-1]-2*F1[1:-2]+F1[:-3]), axis=1)/(s1[1:]-s1[:-1])**2
+    #     axisp.plot(s1[1:],  R, c='r', alpha=  0.5)
 
-    
+  
     # Statistic test against uniform law
     # print("Kolmogorov Smirnov test", scipy.stats.kstest(rand, 'uniform', args=(min(rand), max(rand))))
     
             
 
 if __name__ == "__main__" :
-    
-    # Test on the centered circle
-    # testFunction(circle, size=10000, changeBounds = False)
-    # testFunction(circle, size=10000, changeBounds = True)
-    
-    # Test on the off centered circle
-    # testFunction(offCenteredCircle, size=10000, changeBounds = False)
-    # testFunction(offCenteredCircle, size=10000, changeBounds = True)
-    
+      
     # Test on trifolium
-    testFunction(ellipsis, N1 = 1000, size=10000, changeBounds = False)
-    testFunction(ellipsis, N1 = 1000, size=10000, curvature=True, changeBounds = True)
+    clf =  edsd.load("trifolium.edsd")
+
+    edsd.random.set_random_generator("Sobol")
+    ref = compare_to_ref(trifolium, size=10000, label =  "Reference", clf= clf)
+    edsd.random.set_random_generator("Poisson")                            
+    size = 1000
+    compare_to_ref(trifolium, size=size, label =  "Sobol", clf= clf, ref = ref)
+    edsd.random.set_random_generator("Halton")
+    compare_to_ref(trifolium, size=size, label =  "Halton", clf= clf, ref = ref)
+    edsd.random.set_random_generator("numpy")
+    compare_to_ref(trifolium, size=size, label =  "numpy", clf= clf, ref = ref)
+    edsd.random.set_random_generator("Latin")
+    compare_to_ref(trifolium, size=size, label =  "Latin", clf= clf, ref = ref)
+    edsd.random.set_random_generator("Poisson")
+    compare_to_ref(trifolium, size=size, label =  "Poisson", clf= clf, ref = ref)
 
     plt.show()

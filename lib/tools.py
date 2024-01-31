@@ -11,8 +11,6 @@ import warnings
 import sys, os
 
 
-colors = ['r', 'g', 'b', 'm', 'c', 'k', 'y', 'r', 'g', 'b', 'm', 'c', 'k', 'y']
-
 def tetrahedron_volume(a, b, c, d):
     return np.abs(np.einsum('ij,ij->i', a-d, np.cross(b-d, c-d))) / 6
 
@@ -44,7 +42,7 @@ def volume(tri) :
         return(vol/6)
             
 
-def _parallel(param, func1, func2=None) :
+def _parallel(param, func1, func2=None, **kargs) :
     """
     Parallelize the function func1, and execute func2 on its result 
     if func2 is not None
@@ -67,7 +65,7 @@ def _parallel(param, func1, func2=None) :
 
     """
                 
-    x = func1(param)
+    x = func1(param, **kargs)
     if func2 != None :
         y = func2(x)
         return([x, y])
@@ -75,56 +73,6 @@ def _parallel(param, func1, func2=None) :
     else :
         return(x)
 
-
-def plot_implicit(ax, fn, bbox=[[-2.5, -2.5, -2.5], [2.5, 2.5,2.5]]):
-    """
-    Create a plot of an implicit function using the contour
-
-    Parameters
-    ----------
-    ax : TYPE
-        DESCRIPTION.
-    fn : function return a float
-        implicit function (plot where fn==0)
-    bbox : TYPE, optional
-        the x,y,and z limits of plotted interval
-
-    Returns
-    -------
-    None.
-
-    """
-    xmin, ymin, zmin = bbox[0]
-    xmax, ymax, zmax = bbox[1]
-
-    with warnings.catch_warnings():
-        warnings.filterwarnings("ignore", message="No contour levels were found within the data range.") 
-    
-        Ax = np.linspace(xmin, xmax, 15) # resolution of the contour
-        Ay = np.linspace(ymin, ymax, 15) # resolution of the contour
-        Az = np.linspace(zmin, zmax, 15) # resolution of the contour
-
-        X,Y = np.meshgrid(Ax,Ay) # grid on which the contour is plotted
-        for z in Az: # plot contours in the XY plane
-            Z = fn(X,Y,z)
-            cset = ax.contour(X, Y, Z+z, [z], zdir='z')
-            # [z] defines the only level to plot for this contour for this value of z
-    
-        X, Z = np.meshgrid(Ax,Az) # grid on which the contour is plotted
-        for y in Ay: # plot contours in the XZ plane
-            Y = fn(X,y,Z)
-            cset = ax.contour(X, Y+y, Z, [y], zdir='y')
-    
-        Y, Z = np.meshgrid(Ay,Az) # grid on which the contour is plotted
-        for x in Ax: # plot contours in the YZ plane
-            X = fn(x,Y,Z)
-            cset = ax.contour(X+x, Y, Z, [x], zdir='x')
-    
-
-    ax.set_zlim3d(zmin,zmax)
-    ax.set_xlim3d(xmin,xmax)
-    ax.set_ylim3d(ymin,ymax)
-    
     
 def _advBar(i) :
     """
