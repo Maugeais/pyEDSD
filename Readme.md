@@ -1,6 +1,6 @@
-# pyEDSD, beta version 0.3.3
+# pyEDSD
 
-*  Explicit Design space decomposition
+*  Explicit Design space decomposition using SVM
     
     Parameters :
     ----------

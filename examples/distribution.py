@@ -168,7 +168,7 @@ if __name__ == "__main__" :
     edsd.random.set_random_generator("Sobol")
     ref = compare_to_ref(trifolium, size=10000, label =  "Reference", clf= clf)
     edsd.random.set_random_generator("Poisson")                            
-    size = 1000
+    size = 100
     compare_to_ref(trifolium, size=size, label =  "Sobol", clf= clf, ref = ref)
     edsd.random.set_random_generator("Halton")
     compare_to_ref(trifolium, size=size, label =  "Halton", clf= clf, ref = ref)

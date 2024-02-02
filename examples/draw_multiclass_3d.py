@@ -6,7 +6,7 @@ edsd.set_backend("plotly")
 
 # colors = ['r', 'g', 'b', 'c', 'm', 'y', 'k']
 
-# options = [{"name" : str(n)} for i, n in enumerate(clf._neighbours)]  
+# options = [{"name" : str(n)} for i, n in enumerate(clf.neighbours_)]  
 
 # fig = clf.draw(plot_method = "frontiers", scatter = True, options = options)
 

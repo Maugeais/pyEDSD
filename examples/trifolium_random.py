@@ -6,7 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-def generate_random(func, size = 1000, clf = None, ax = None) :
+def generate_random(size = 1000, clf = None, ax = None) :
     
     
     X = clf.random(size=size, processes = 1, verbose = True)
@@ -28,8 +28,8 @@ if __name__ == "__main__" :
     edsd.random.set_random_generator("Sobol")
     clf =  edsd.load("trifolium.edsd")
     
-    ax = clf.draw(contour_options = [{"levels" : [0]}])
+    ax = clf.draw(options = [{"levels" : [0]}])
 
-    generate_random(trifolium, size=100, clf= clf, ax = ax)
+    generate_random(size=100, clf= clf, ax = ax)
 
     plt.show()

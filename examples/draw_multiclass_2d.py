@@ -31,9 +31,9 @@ clf.draw(plot_method = "classes", scatter = False, classes = [0, 1, 2, 3, 4, 5],
 
 colors = ['r', 'g', 'b', 'c', 'm', 'y', 'k']
 
-options = [{"colors" : colors[i % len(colors)]} for i, n in enumerate(clf._neighbours)]  
+options = [{"colors" : colors[i % len(colors)]} for i, n in enumerate(clf.neighbours_)]  
 
-label_options = [{"fmt" : str(n)} for i, n in enumerate(clf._neighbours)]  
+label_options = [{"fmt" : str(n)} for i, n in enumerate(clf.neighbours_)]  
 
 clf.draw(plot_method = "frontiers", scatter = False, options = options, label_options = label_options)
 clf.show()

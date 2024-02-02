@@ -5,7 +5,7 @@ import pyEDSD as edsd
 
 edsd.set_backend("plotly")
 clf = edsd.load("3d.edsd")
-fig = clf.draw(plot_method = "frontiers", contourf_options = [{"name" : "Test 1", "showlegend" : True, "color" : 'rgb(255,0,0)'}])
+fig = clf.draw(plot_method = "frontiers", options = [{"name" : "Test 1", "showlegend" : True, "color" : 'rgb(255,0,0)'}])
 fig.update_layout(
     title="Example of 3d drawing",
     scene = dict(xaxis_title='Axis 1',

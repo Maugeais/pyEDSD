@@ -67,6 +67,20 @@ def set_random_generator(name = "Sobol") :
         initialiser = qmc.PoissonDisk
  
 
+pool_ = []
+
+def generate_pool(d: int, n: int, seed: int = -1) :
+    global pool_
+    if seed >= 0 :
+        sampler = initialiser(d=d, seed = seed)
+    else :
+        sampler = initialiser(d=d)
+
+    pool_ = sampler.random(n=n)
+    
+def get_from_pool(i: int) :
+    return(pool_[i % len(pool_)])
+
 def rand(d, n = 1, seed=0) :
 
     global sampler, initialiser

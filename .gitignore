@@ -4,3 +4,5 @@ Doc/
 pyEDSD-old.py
 
 tools-old.py
+
+__pycache__/

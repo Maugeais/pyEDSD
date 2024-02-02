@@ -1,0 +1,3 @@
+# details of examples 
+
+*  

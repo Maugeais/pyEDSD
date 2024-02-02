@@ -134,7 +134,7 @@ def _contour3d(clf, grid_resolution = 50, scatter = True, classes = [], options 
 
 def __prepare_grid(clf, grid_resolution) :
 
-    if clf._dimension == 2 :
+    if clf.dimension_ == 2 :
     
         # create a mesh to plot in
         x_min, x_max, y_min, y_max = 0, 1, 0, 1
@@ -161,9 +161,9 @@ def __prepare_grid(clf, grid_resolution) :
         
     else :
             
-        F = [f[:, c].reshape(xx.shape) for c in clf._distances]
+        F = [f[:, c].reshape(xx.shape) for c in clf.decision_function_indices_]
 
-    if clf._dimension == 2 :
+    if clf.dimension_ == 2 :
         return(xx, yy, F)
 
     return(xx, yy, zz, F)
@@ -187,8 +187,7 @@ def _frontiers2d(clf, grid_resolution = 100, scatter = True, frontiers = [], ax 
 
     """
 
-    if frontiers == [] :
-        frontiers = clf._neighbours
+    
 
     X = clf.trainingSet
     y = clf.trainingSetValues
@@ -196,12 +195,13 @@ def _frontiers2d(clf, grid_resolution = 100, scatter = True, frontiers = [], ax 
     xx, yy, F = __prepare_grid(clf, grid_resolution)
                     
     if len(clf.classes_)  > 2 :
-        options += [options[-1]]*(len(clf._distances)-len(options))
+        options += [options[-1]]*(len(clf.decision_function_indices_)-len(options))
 
-        label_options += [label_options[-1]]*(len(clf._distances)-len(label_options))
+        label_options += [label_options[-1]]*(len(clf.decision_function_indices_)-len(label_options))
 
-        _neighbours = clf._neighbours
-
+        _neighbours = clf.neighbours_
+        if frontiers == [] :
+                frontiers = clf.neighbours_
     else :
         _neighbours = [0]
         frontiers = [0]
@@ -287,17 +287,17 @@ def _classes2d(clf, grid_resolution = 100, scatter = True, classes = [], ax = No
             
     xx, yy, F = __prepare_grid(clf, grid_resolution)
     
-    neighbourhood = set.union(*(set(x) for x in clf._neighbours))
+    neighbourhood = set.union(*(set(x) for x in clf.neighbours_))
 
     # Neighbours _must_ be sorted
-    clf._neighbours = [[min(n), max(n)] for n in clf._neighbours]
+    clf.neighbours_ = [[min(n), max(n)] for n in clf.neighbours_]
 
     for c in classes :
 
 
         if c in neighbourhood  :
 
-            f = np.max([(-float(c==n[0])+float(c==n[1]))*F[i] for i, n in enumerate(clf._neighbours) if c in n], axis = 0)
+            f = np.max([(-float(c==n[0])+float(c==n[1]))*F[i] for i, n in enumerate(clf.neighbours_) if c in n], axis = 0)
 
             if _backend == "matplotlib" :
                 
@@ -328,7 +328,7 @@ def _classes2d(clf, grid_resolution = 100, scatter = True, classes = [], ax = No
     #     fig.update_layout(width=1200, height=1200, font_size=11)
     #     return(fig)
   
-def _frontiers3d(clf, grid_resolution = 100, scatter = True, classes = [], ax = None, fig = None, options = []) :
+def _frontiers3d(clf, grid_resolution = 100, scatter = True, frontiers = [], ax = None, fig = None, options = []) :
     """Draw the zones and their boundaries obtained for a 3d the classifier
     Parameters
     ----------
@@ -352,11 +352,22 @@ def _frontiers3d(clf, grid_resolution = 100, scatter = True, classes = [], ax = 
     xx, yy, zz, F = __prepare_grid(clf, grid_resolution)
 
     h = 1/grid_resolution
-            
+
+    if len(clf.classes_)  > 2 :
+        options += [options[-1]]*(len(clf.decision_function_indices_)-len(options))
+
+        label_options += [label_options[-1]]*(len(clf.decision_function_indices_)-len(label_options))
+
+        _neighbours = clf.neighbours_
+        if frontiers == [] :
+                frontiers = clf.neighbours_
+    else :
+        _neighbours = [0]
+        frontiers = [0]
+        
     for i, f in enumerate(F) :
 
-
-        if not (np.all(f > 0) if f[0, 0, 0] > 0 else np.all(f < 0)) :
+        if _neighbours[i] in frontiers and not (np.all(f > 0) if f[0, 0, 0] > 0 else np.all(f < 0)) :
             
             verts, faces, normals, values = measure.marching_cubes(f, 0, spacing=[h, h, h])
             verts = clf._a*verts+clf._b
@@ -438,13 +449,13 @@ def _classes3d(clf, grid_resolution = 100, scatter = True, classes = [], ax = No
 
     h = 1/grid_resolution
 
-    neighbourhood = set.union(*(set(x) for x in clf._neighbours))
+    neighbourhood = set.union(*(set(x) for x in clf.neighbours_))
 
     for c in classes :
 
         if c in neighbourhood  :
         
-            f = np.max([(-float(c==n[0])+float(c==n[1]))*F[i] for i, n in enumerate(clf._neighbours) if c in n], axis = 0)
+            f = np.max([(-float(c==n[0])+float(c==n[1]))*F[i] for i, n in enumerate(clf.neighbours_) if c in n], axis = 0)
             
             verts, faces, normals, values = measure.marching_cubes(f, 0, spacing=[h, h, h])
             verts = clf._a*verts+clf._b

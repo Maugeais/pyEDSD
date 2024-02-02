@@ -64,6 +64,7 @@ def _parallel(param, func1, func2=None, **kargs) :
     otherwize return [func1(param), func2(func1(param))]
 
     """
+    print(param)
                 
     x = func1(param, **kargs)
     if func2 != None :

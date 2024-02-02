@@ -66,7 +66,7 @@ class svcEDSD(svm.SVC):
 
         """        
 
-        if (self._dimension == 2) : 
+        if (self.dimension_ == 2) : 
             if plot_method == 'frontiers' : 
                 return(plot._frontiers2d(self, grid_resolution = grid_resolution, scatter = scatter, frontiers = frontiers, ax = ax, 
                                        options = options, label_options = label_options))
@@ -80,7 +80,7 @@ class svcEDSD(svm.SVC):
                 raise ValueError(f"the value {plot_method} is not possible for the vairable plot_method")
                 
             
-        elif (self._dimension == 3) : 
+        elif (self.dimension_ == 3) : 
 
             if plot_method == 'mesh' :
                 plot._contour3d(self, grid_resolution = grid_resolution, scatter = scatter, classes = classes, ax = ax, options = contour_options)
@@ -102,7 +102,7 @@ class svcEDSD(svm.SVC):
     
         
         
-    def _random(self, id=0, class_id = -1) :
+    def random_(self, id=0, class_id = -1) :
         """
         Main random function, it should not be called directly
 
@@ -110,7 +110,7 @@ class svcEDSD(svm.SVC):
         ----------
         id : int, optional
             parameter used to initialise the random seed, together with the clock.
-            This is present to prevent many calls to _random sent at the same time 
+            This is present to prevent many calls to random_ sent at the same time 
             that would  give the same result, which can happen if the clock resolution 
             used for the initialization of the seed is too coarse.
             The default is 0.
@@ -127,19 +127,14 @@ class svcEDSD(svm.SVC):
         """
         tol = 1e-3
         
-        np.random.seed((2**3*id+time.time_ns())%(2**32))
+        # np.random.seed((2**3*id+time.time_ns())%(2**32))
             
         if len(self.classes_) > 2 :
                     
             if class_id < 0 :
-                classNumber = np.random.choice(self._distances)
+                classNumber = np.random.choice(self.decision_function_indices_)
             else :
                 classNumber  = class_id
-            # if self.decision_function_shape == 'ovo' :
-                
-            # else :
-                
-            #     classNumber = np.random.randint(len(self.classes_))
                                     
             decision = lambda x : self.decision_function([x])[0][classNumber]**2 #+1/(1+min(np.linalg.norm(self.trainingSet-x, axis=1)**2))
                 
@@ -148,19 +143,17 @@ class svcEDSD(svm.SVC):
             decision = lambda x : self.decision_function([x])**2 #+1/(1+dist(x, X)**2)
             
         n = m = 0
-                        
+
+        # Try first the official pool
+        x0 = random.get_from_pool(id)
         while True : 
-            
-            x0 = random.rand(self._dimension)
-     
+                 
             res = minimize(decision, x0, method='CG', options = {})#, bounds=bounds)
             
             # If the result is within the bounds
-            if  res.fun < tol and all([(res.x[i] > 0) and (res.x[i] < 1) for i in range(self._dimension)]) :
+            if  res.fun < tol and all([(res.x[i] > 0) and (res.x[i] < 1) for i in range(self.dimension_)]) :
                                
-                return(self._a*res.x+self._b)
- 
-            n += 1
+                return(self._a*res.x+self._b)         
             
             if n > max_random_gradient :
                                 
@@ -170,14 +163,10 @@ class svcEDSD(svm.SVC):
                     if m > len(self.classes_) :
                         raise Exception('random')              
                     
-                    classNumber = np.random.choice(self._distances)
-                    # if self.decision_function_shape == 'ovo' :
-                          
-                    # else :
-                        
-                    #     classNumber = np.random.randint(len(self.classes_))
+                    classNumber = np.random.choice(self.decision_function_indices_)
+                    
                     if class_id < 0 :
-                        classNumber = np.random.choice(self._distances)
+                        classNumber = np.random.choice(self.decision_function_indices_)
                     else :
                         classNumber  = class_id
                     decision = lambda x : self.decision_function([x])[0][classNumber]**2 #+1/(1+min(np.linalg.norm(self.trainingSet-x, axis=1)**2))
@@ -185,7 +174,11 @@ class svcEDSD(svm.SVC):
                     n = 0
 
                 else :
-                    raise Exception('random')     
+                    raise Exception('random')
+
+            # if it did not work with original pool, try another random element
+            n += 1
+            x0 = random.rand(self.dimension_)     
 
     def reset_random_pool(self, class_id = 0) :
         """
@@ -233,7 +226,7 @@ class svcEDSD(svm.SVC):
          
         if size == 1 : 
             
-            return(self._random())
+            return(self.random_())
       
         if not hasattr(self, '_random_pool') :
             
@@ -243,12 +236,14 @@ class svcEDSD(svm.SVC):
             self._random_pool[class_id] = []
             
         new_size = max(size-len(self._random_pool[class_id]), 0)
-        
+
+        random.generate_pool(d = self.dimension_, n = new_size)
+
         n = 0
          
         with multiprocessing.Pool(processes=processes) as pool:
                     
-            for r in pool.map(partial(tools._parallel, func1=self._random, class_id = class_id), range(new_size)):
+            for r in pool.map(self.random_, range(new_size)):
                     
                 self._random_pool[class_id].append(r)
 
@@ -283,7 +278,7 @@ class svcEDSD(svm.SVC):
         """
         
         if size_random == None :
-            size_random = 10**self._dimension
+            size_random = 10**self.dimension_
         
         X = self.random(size=size_random)
         
@@ -310,7 +305,7 @@ class svcEDSD(svm.SVC):
         """
         
         if size_random == None :
-            size_random = 10**self._dimension
+            size_random = 10**self.dimension_
     
         X = np.array(self.random(size=size_random))
         
@@ -337,7 +332,7 @@ class svcEDSD(svm.SVC):
         """
         
         if size_random == None :
-            size_random = 10**self._dimension
+            size_random = 10**self.dimension_
     
         X = np.array(self.random(size=size_random))
         
@@ -369,24 +364,29 @@ class svcEDSD(svm.SVC):
     
         # Compute a Dalaunay triangulation
         frontier = [min(frontier), max(frontier)]
-        index = self._distances[self._neighbours.index(frontier)]
-
+        if len(self.classes_) > 2 :
+            index = self.decision_function_indices_[self.neighbours_.index(frontier)]
+        else :
+            index = 0
+      
         # Creates the points in the boundary
         points = self.random(n_boundary, class_id = index)
 
         m, M = np.min(points, axis = 0), np.max(points, axis = 0)
         
         # Then the points in the interior
-        n_interior = max(n_interior, 2**self._dimension)
+        n_interior = max(n_interior, 2**self.dimension_)
 
-        rand = (M-m)*random.rand(self._dimension, n = n_interior)+m
+        random.generate_pool(self.dimension_, n_interior)
+
+        rand = (M-m)*random.pool_+m
        
 
         if len(self.classes_) == 2 :
-            I = (self.decision_function((rand-self._b)/self._a)*value > 0)
+            I = (self.homogenous_decision_function(rand)*value > 0)
         else :
     
-            I = (self.decision_function((rand-self._b)/self._a)[:, index]*value > 0)
+            I = (self.homogenous_decision_function(rand)[:, index]*value > 0)
             
         points = np.concatenate((points, rand[I, :]))
         
@@ -394,13 +394,13 @@ class svcEDSD(svm.SVC):
                 
         # Remove simplicies whose centre is outside 
         if len(self.classes_) == 2 :
-            tri.simplices = [simp for simp in list(tri.simplices) if self.decision_function([(np.mean(tri.points[simp], axis = 0)-self._b)/self._a])*value > 0]
+            tri.simplices = [simp for simp in list(tri.simplices) if self.homogenous_decision_function([np.mean(tri.points[simp], axis = 0)])*value > 0]
         else :
-            tri.simplices = [simp for simp in list(tri.simplices) if self.decision_function([(np.mean(tri.points[simp], axis = 0)-self._b)/self._a])[:, index]*value > 0]
+            tri.simplices = [simp for simp in list(tri.simplices) if self.homogenous_decision_function([np.mean(tri.points[simp], axis = 0)])[:, index]*value > 0]
         
         if draw :
             
-            if self._dimension == 2 :
+            if self.dimension_ == 2 :
                         
                 ax.triplot(tri.points[:, 0], tri.points[:, 1], tri.simplices)
      
@@ -431,6 +431,9 @@ class svcEDSD(svm.SVC):
         setattr(spatial._qhull.Delaunay, 'volume', tools.volume)
         
         return(tri.volume())
+
+    def homogenous_decision_function(self, X) :
+        return(self.decision_function((X-self._b)/self._a))
     
     def expand(self, N1, processes = 4, verbose = False, animate = False,  neighbours = []) :
         """
@@ -465,7 +468,7 @@ class svcEDSD(svm.SVC):
                 
             if processes == 1 :
                 
-                x0 = clf._random()
+                x0 = clf.random_()
                 X.append(x0)
                 y.append(self.func(x0))
             
@@ -475,7 +478,7 @@ class svcEDSD(svm.SVC):
                 
                     with multiprocessing.Pool(processes=processes) as pool:
                         
-                        for r in pool.map(partial(tools._parallel, func1=clf._random, func2=self.func), range(processes)):
+                        for r in pool.map(partial(parallel_random_eval_, func1=clf.random_, func2=self.func), range(processes)):
 
                             if r[1] != -1 :
                                 X.append(r[0])
@@ -483,16 +486,16 @@ class svcEDSD(svm.SVC):
                                 
                 except KeyboardInterrupt:
                     print('\nStopping at {}%'.format(100*n*processes/N1))
-                    clf = _fit(self.func, self.svc, X, y, self._a, self._b, neighbours)
+                    clf = fit_(self.func, self.svc, X, y, self._a, self._b, neighbours)
                     break
                 
                 except BaseException as error:
                     print(error)
-                    clf = _fit(self.func, self.svc, X, y, self._a, self._b, neighbours)
+                    clf = fit_(self.func, self.svc, X, y, self._a, self._b, neighbours)
                     
                     break
     
-            clf = _fit(self.func, self.svc, X, y, self._a, self._b, neighbours)    
+            clf = fit_(self.func, self.svc, X, y, self._a, self._b, neighbours)    
                 
             if verbose : 
                 tools._advBar(int(100*n*processes/N1))
@@ -543,8 +546,34 @@ def relevant_distances(classes, neighbours) :
             existing_neighbours.append([min(n), max(n)])
                             
     return(distances, existing_neighbours)
+
+def parallel_random_eval_(id, func1, func2) :
+    """
+    Parallelize the function func1, and execute func2 on its result 
+    if func2 is not None
+
+    Parameters
+    ----------
+    param : int, optional
+        Parameter to be given to the function func1
+        The default is 0.
+    func1 : function
+        Function to be evaluated DESCRIPTION. The default is None.
+    func2 : function, optional
+        If not none, function to evaluate on the returning parameter of func1(param). 
+        The default is None.
+
+    Returns
+    -------
+    If func2 == None, returns func1(param)
+    otherwize return [func1(param), func2(func1(param))]
+
+    """                
+    x = func1(id)
+    y = func2(x)
+    return([x, y])
     
-def _fit(func, svc, X, y, a, b, neighbours) :
+def fit_(func, svc, X, y, a, b, neighbours) :
     """
     
 
@@ -571,9 +600,9 @@ def _fit(func, svc, X, y, a, b, neighbours) :
     clf.trainingSetValues = np.array(y)
     clf.func = func
     clf.svc = svc   
-    clf._dimension = len(a)
+    clf.dimension_ = len(a)
     if (len(clf.classes_) > 2) :
-        clf._distances, clf._neighbours = relevant_distances(clf.classes_, neighbours)
+        clf.decision_function_indices_, clf.neighbours_ = relevant_distances(clf.classes_, neighbours)
     
     return(clf)
     
@@ -683,9 +712,8 @@ def edsd(func, X0=[], bounds=[], N0 = 10, N1 = 10, processes = 1, classes = 1,
     if verbose :
         print("Creation of first set")
 
-    
-    X += list(a*random.rand(len(bounds[0]), N0)+b)
-   
+    random.generate_pool(len(bounds[0]), N0)
+    X += list(a*random.pool_+b)   
                 
     # print(random.discrepency(X))
     # Calcul des valeurs des fonctions
@@ -712,7 +740,7 @@ def edsd(func, X0=[], bounds=[], N0 = 10, N1 = 10, processes = 1, classes = 1,
     if classes > 2 :
         svc["decision_function_shape"]='ovo'
         
-    clf = _fit(func, svc, X, y, a, b, neighbours)
+    clf = fit_(func, svc, X, y, a, b, neighbours)
     
     if verbose : 
         print("Classes found : ", clf.classes_)
