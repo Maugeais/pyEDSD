@@ -105,24 +105,44 @@ def distribution(X, F) :
     
     return(np.cumsum(dist)/len(X), indeces)
 
+def find_nearest(array, value):
+    array = np.asarray(array)
+    idx = (np.abs(array - value)).argmin()
+    return array[idx]
+
+def inversion(y, z):
+
+    x = np.zeros_like(y)
+    N = len(y)
+
+    for i in range(N) :
+
+        j = 0
+        while (y[j] <= z[i] and j < N-1):
+            j+=1
+
+        x[i] = j/N
+
+    return(x)
+
 
 def compare_to_ref(func, N1 = 100, size = 1000, curvature = False, label = "", clf = None, ref = []) :
-    
-    # Computation of edsd
-    plt.figure('SVM')
 
-    # Drawing of the parametrisation
+    
+    # Computes the parametrisation
     s1, F1 = canonicalParam(func, 2*np.pi, 10000)
 
-    plt.plot(F1[:, 0], F1[:, 1])
     
-    # Plotting of the probability law against curvature
+    # Plotting of the distribution law against curvature
     fig=plt.figure("Distribution") #Figure(figsize=(7, 3.5))
     axis = plt.gca() #fig.add_subplot(1, 1, 1)
-    
+    print(f"Generation with {label}")
+
+    # Resets the random pool
+    clf.reset_random_pool()
 
     try :
-        X = clf.random(size=size, processes = 10, verbose = True)
+        X = clf.random(size=size, processes = 10)
     except :
         print(f"Problem with the generation of random points using the generator {label}")
         return()
@@ -132,33 +152,25 @@ def compare_to_ref(func, N1 = 100, size = 1000, curvature = False, label = "", c
 
     if len(ref) == 0 :
         return(dist)
+ 
     
-    # distUnif = s1/max(s1)
-    # axis.plot(s1, distUnif)
-
     s1 = np.interp(np.linspace(0, 1, len(ref)), np.linspace(0, 1, len(s1)), s1)
     dist = np.interp(np.linspace(0, 1, len(ref)), np.linspace(0, 1, len(dist)), dist)
+    discrepancy = inversion(dist, ref)
+    discr = np.reshape(discrepancy[1:]-discrepancy[:1], (len(discrepancy)-1, 1))
     
-    # axis.plot(ref, dist, label="edsd "+label)
-    axis.plot(s1, dist-ref, label="edsd "+label)
-    plt.xlabel("Arc length t")
-    plt.ylabel("F(t)")
+    discr = np.reshape(dist[1:]-dist[:1], (len(dist)-1, 1))
+
+    axis.plot(s1, dist, label=f"{label} -> {edsd.random.discrepancy(discr):.5f}")
+    plt.xlabel("Parametrisation")
+    plt.ylabel("Empirical distribution")
         
         
     plt.grid(True)
     plt.legend()
     plt.tight_layout()
 
-    # if curvature :
-    #     axisp = axis.twinx()
-    #     R = np.linalg.norm((F1[2:-1]-2*F1[1:-2]+F1[:-3]), axis=1)/(s1[1:]-s1[:-1])**2
-    #     axisp.plot(s1[1:],  R, c='r', alpha=  0.5)
 
-  
-    # Statistic test against uniform law
-    # print("Kolmogorov Smirnov test", scipy.stats.kstest(rand, 'uniform', args=(min(rand), max(rand))))
-    
-            
 
 if __name__ == "__main__" :
       
@@ -166,15 +178,15 @@ if __name__ == "__main__" :
     clf =  edsd.load("trifolium.edsd")
 
     edsd.random.set_random_generator("Sobol")
+    ref = []
     ref = compare_to_ref(trifolium, size=10000, label =  "Reference", clf= clf)
-    edsd.random.set_random_generator("Poisson")                            
     size = 100
     compare_to_ref(trifolium, size=size, label =  "Sobol", clf= clf, ref = ref)
-    edsd.random.set_random_generator("Halton")
+    edsd.random.set_random_generator("Halton", scramble= True)
     compare_to_ref(trifolium, size=size, label =  "Halton", clf= clf, ref = ref)
     edsd.random.set_random_generator("numpy")
     compare_to_ref(trifolium, size=size, label =  "numpy", clf= clf, ref = ref)
-    edsd.random.set_random_generator("Latin")
+    edsd.random.set_random_generator("Latin", scramble=True, strength=1)
     compare_to_ref(trifolium, size=size, label =  "Latin", clf= clf, ref = ref)
     edsd.random.set_random_generator("Poisson")
     compare_to_ref(trifolium, size=size, label =  "Poisson", clf= clf, ref = ref)

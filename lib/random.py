@@ -18,7 +18,6 @@ class np_random(qmc.QMCEngine):
 
     def _random(self, n=1, *, workers=1):
 
-        print("hola")
         return self.rng.random((n, self.d))
 
 
@@ -47,10 +46,12 @@ import sys, os
 sampler = None
 dimension = 0
 initialiser = qmc.LatinHypercube
+initialiser_kargs = {}
 
-def set_random_generator(name = "Sobol") :
+def set_random_generator(name = "Latin", **kargs) :
 
-    global initialiser
+    global initialiser, initialiser_kargs
+    initialiser_kargs = kargs
     if name == "numpy" :
         initialiser = np_random
 
@@ -69,16 +70,16 @@ def set_random_generator(name = "Sobol") :
 
 pool_ = []
 
-def generate_pool(d: int, n: int, seed: int = -1) :
+def generate_pool(d: int, n: int) :
     global pool_
-    if seed >= 0 :
-        sampler = initialiser(d=d, seed = seed)
-    else :
-        sampler = initialiser(d=d)
-
+    # if seed >= 0 :
+    #     sampler = initialiser(d=d, *initialiser_args)
+    # else :
+    #     sampler = initialiser(d=d)
+    sampler = initialiser(d=d, **initialiser_kargs)
     pool_ = sampler.random(n=n)
     
-def get_from_pool(i: int) :
+def get_from_pool(i: int) :    
     return(pool_[i % len(pool_)])
 
 def rand(d, n = 1, seed=0) :
@@ -96,6 +97,6 @@ def rand(d, n = 1, seed=0) :
     return(res) #.random(n=1)[0])
     
 
-def discrepency(sample) :
+def discrepancy(sample) :
 
     return(qmc.discrepancy(sample))

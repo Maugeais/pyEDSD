@@ -23,7 +23,7 @@ if __name__ == "__main__" :
     bounds = [[-2, -2, -2], [2, 2, 2]]
     v = []
 
-    for N1 in range(100, 250, 100) :
+    for N1 in range(100, 2500, 100) :
         clf = edsd.edsd(f1, X0=[[0, 0, 0], [1, 1, 1]], bounds=bounds,  processes=4, 
                         N1 = N1, svc=dict(C = 1000))
     
@@ -33,3 +33,4 @@ if __name__ == "__main__" :
     plt.grid(True)
     plt.xlabel("N1")
     plt.ylabel("Absolute error")
+    plt.show()

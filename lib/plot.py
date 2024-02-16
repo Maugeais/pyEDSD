@@ -160,8 +160,9 @@ def __prepare_grid(clf, grid_resolution) :
         F = [f.reshape(xx.shape)]        
         
     else :
-            
-        F = [f[:, c].reshape(xx.shape) for c in clf.decision_function_indices_]
+
+        F = [f[:, c].reshape(xx.shape) for c in range(f.shape[1])]
+
 
     if clf.dimension_ == 2 :
         return(xx, yy, F)
@@ -169,7 +170,8 @@ def __prepare_grid(clf, grid_resolution) :
     return(xx, yy, zz, F)
 
 
-def _frontiers2d(clf, grid_resolution = 100, scatter = True, frontiers = [], ax = None, fig = None, options = [{}], label_options = [{}]) :
+def _frontiers2d(clf, grid_resolution = 100, scatter = True, frontiers = [], 
+                 ax = None, fig = None, options = [{}], label_options = [{}], scatter_options = [{}]) :
     """Draw the zones and their boundaries obtained for a 3d the classifier
     Parameters
     ----------
@@ -199,16 +201,17 @@ def _frontiers2d(clf, grid_resolution = 100, scatter = True, frontiers = [], ax 
 
         label_options += [label_options[-1]]*(len(clf.decision_function_indices_)-len(label_options))
 
-        _neighbours = clf.neighbours_
+        neighbours_ = clf.neighbours_
+        
         if frontiers == [] :
                 frontiers = clf.neighbours_
     else :
-        _neighbours = [0]
+        neighbours_ = [0, 1]
         frontiers = [0]
-        
+            
     for i, f in enumerate(F) :
-
-        if _neighbours[i] in frontiers and not (np.all(f > 0) if f[0, 0] > 0 else np.all(f < 0)) :
+        
+        if i in neighbours_ and neighbours_[i] in frontiers and not (np.all(f > 0) if f[0, 0] > 0 else np.all(f < 0)) :
             
             if _backend == "plotly" :
                 
@@ -265,7 +268,8 @@ def _frontiers2d(clf, grid_resolution = 100, scatter = True, frontiers = [], ax 
         return(fig)
 
 
-def _classes2d(clf, grid_resolution = 100, scatter = True, classes = [], ax = None, fig = None, options = [{}], label_options = [{}]) :
+def _classes2d(clf, grid_resolution = 100, scatter = True, classes = [], 
+               ax = None, fig = None, options = [{}], label_options = [{}], scatter_options = [{}]) :
     """Draw the boundaries obtained for a 3d the classifier
     Parameters
     ----------
@@ -291,13 +295,12 @@ def _classes2d(clf, grid_resolution = 100, scatter = True, classes = [], ax = No
 
     # Neighbours _must_ be sorted
     clf.neighbours_ = [[min(n), max(n)] for n in clf.neighbours_]
-
+    
     for c in classes :
-
 
         if c in neighbourhood  :
 
-            f = np.max([(-float(c==n[0])+float(c==n[1]))*F[i] for i, n in enumerate(clf.neighbours_) if c in n], axis = 0)
+            f = np.max([(-float(c==n[0])+float(c==n[1]))*F[clf.index_neighbourhood_(n)] for n in clf.neighbours_ if c in n], axis = 0)
 
             if _backend == "matplotlib" :
                 
@@ -318,6 +321,13 @@ def _classes2d(clf, grid_resolution = 100, scatter = True, classes = [], ax = No
     plt.legend()
            
     if _backend == "matplotlib" :
+        
+        if scatter and ax != None : 
+            
+            for c in classes : 
+                I = np.where(y == c)[0]
+                ax.scatter(X[I, 0], X[I, 1], **scatter_options[c])
+            
         return(ax)
 
     # if _backend == "plotly" :
@@ -328,7 +338,8 @@ def _classes2d(clf, grid_resolution = 100, scatter = True, classes = [], ax = No
     #     fig.update_layout(width=1200, height=1200, font_size=11)
     #     return(fig)
   
-def _frontiers3d(clf, grid_resolution = 100, scatter = True, frontiers = [], ax = None, fig = None, options = []) :
+def _frontiers3d(clf, grid_resolution = 100, scatter = True, frontiers = [], 
+                 ax = None, fig = None, options = [], label_options = [{}], scatter_options = [{}]) :
     """Draw the zones and their boundaries obtained for a 3d the classifier
     Parameters
     ----------
@@ -421,7 +432,9 @@ def _frontiers3d(clf, grid_resolution = 100, scatter = True, frontiers = [], ax 
         fig.update_layout(width=1200, height=1200, font_size=11)
         return(fig)
 
-def _classes3d(clf, grid_resolution = 100, scatter = True, classes = [], ax = None, fig = None, options = [], levels = []) :
+def _classes3d(clf, grid_resolution = 100, scatter = True, classes = [], 
+               ax = None, fig = None, options = [], levels = [], 
+               label_options = [{}], scatter_options = [{}]) :
     """Draw the zones and their boundaries obtained for a 3d the classifier
     Parameters
     ----------
@@ -452,48 +465,50 @@ def _classes3d(clf, grid_resolution = 100, scatter = True, classes = [], ax = No
     neighbourhood = set.union(*(set(x) for x in clf.neighbours_))
 
     for c in classes :
-
-        if c in neighbourhood  :
         
-            f = np.max([(-float(c==n[0])+float(c==n[1]))*F[i] for i, n in enumerate(clf.neighbours_) if c in n], axis = 0)
+        if c in neighbourhood  :
+                    
+            f = np.max([(-float(c==n[0])+float(c==n[1]))*F[clf.index_neighbourhood_(n)] for n in clf.neighbours_ if c in n], axis = 0)
             
-            verts, faces, normals, values = measure.marching_cubes(f, 0, spacing=[h, h, h])
-            verts = clf._a*verts+clf._b
-            
-            if _backend == "plotly" :
+            if not (np.all(f > 0) if f[0, 0, 0] > 0 else np.all(f < 0)) :
+             
+                verts, faces, normals, values = measure.marching_cubes(f, 0, spacing=[h, h, h])
+                verts = clf._a*verts+clf._b
                 
-                cmap = plt.get_cmap("tab10")
-                
-                colorscale = [[0, 'rgb' + str(cmap(1)[0:3])], 
-                                [0.1, 'rgb' + str(cmap(2)[0:3])],
-                                [0.2, 'rgb' + str(cmap(3)[0:3])],
-                                [0.3, 'rgb' + str(cmap(4)[0:3])],
-                                [1, 'rgb' + str(cmap(5)[0:3])]]
-                
-                
-                default = {}
-                            
-                x, y, z = verts.T
-                I, J, K = faces.T
-                mesh = go.Mesh3d(x=x, y=y, z=z,
-                        i=I,j=J,k=K, **{**default, **options[c]}, opacity=0.50)   
-                
-                if fig == None : 
-                    fig = go.Figure()
-
-                fig.add_trace(mesh)
+                if _backend == "plotly" :
+                    
+                    cmap = plt.get_cmap("tab10")
+                    
+                    colorscale = [[0, 'rgb' + str(cmap(1)[0:3])], 
+                                    [0.1, 'rgb' + str(cmap(2)[0:3])],
+                                    [0.2, 'rgb' + str(cmap(3)[0:3])],
+                                    [0.3, 'rgb' + str(cmap(4)[0:3])],
+                                    [1, 'rgb' + str(cmap(5)[0:3])]]
+                    
+                    
+                    default = {}
+                                
+                    x, y, z = verts.T
+                    I, J, K = faces.T
+                    mesh = go.Mesh3d(x=x, y=y, z=z,
+                            i=I,j=J,k=K, **{**default, **options[c]}, opacity=0.50)   
+                    
+                    if fig == None : 
+                        fig = go.Figure()
+    
+                    fig.add_trace(mesh)
     
                 
                 
-            if _backend == "matplotlib" :
-                
-                if ax == None :
-                    fig = plt.figure()
-                
-                    ax = fig.add_subplot(111, projection='3d')
-
-                default_options = {"alpha" : 0.5, "lw" : 0, "antialiased" : True}
-                ax.plot_trisurf(verts[:, 0], verts[:, 1], faces, verts[:, 2], **{**default_options, **options[c]})
+                if _backend == "matplotlib" :
+                    
+                    if ax == None :
+                        fig = plt.figure()
+                    
+                        ax = fig.add_subplot(111, projection='3d')
+    
+                    default_options = {"alpha" : 0.5, "lw" : 0, "antialiased" : True}
+                    ax.plot_trisurf(verts[:, 0], verts[:, 1], faces, verts[:, 2], **{**default_options, **options[c]})
                 
     if _backend == "matplotlib" :
         if scatter : 
