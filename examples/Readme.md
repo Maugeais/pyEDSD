@@ -7,7 +7,7 @@
 * multiclass_2d.py
     multiclass classifier in 2d, the result in saved in multi.edsd, which can be displayed with draw_multiclass_2d.py
 * multiclass_3d.py
-    multiclass classifier in 3d, the result in saved in 3d_multi.edsd, which can be displayed with draw_multiclass_3d.py using plotly.js
+    multiclass classifier in 3d, the result in saved in multi_3d.edsd, which can be displayed with draw_multiclass_3d.py using plotly.js
 * volume2d.py
     computes the volume of different curves in 2d
 * volume3d.py

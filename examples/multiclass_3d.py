@@ -11,12 +11,12 @@ def f1(X) :
     r3 = (X[0]**2+X[1]**2+(X[2]-2)**2)
 
     if r1 < 1  :
-        return(0)
+        return("0")
     if r2 < 1 :
-        return(1)
+        return("1")
     if r3 < 1 :
-        return(2)
-    return(3)
+        return("2")
+    return("3")
     
 if __name__ == "__main__" :
         

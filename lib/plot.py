@@ -19,59 +19,60 @@ except ImportError:
     
 _backend = "matplotlib"
 
-def _draw2d_(clf, grid_resolution = 100, scatter = True, fig = None, classes = [], ax = None, options ={}, levels = []) :
-    """
-    Draw the zones and their boundaries obtained for a 2d classifier
-    Parameters
-    ----------
-    grid_resolution : int, optional
-        DESCRIPTION. resolution of the grid used to draw the contour.
-        The default is 100.
-    scatter : bool, optional
-        DESCRIPTION. The default is False.
-    options : dict, optional
-        Options passed to DecisionBoundaryDisplay.from_estimator
+# def _draw2d_(clf, grid_resolution = 100, scatter = True, fig = None, classes = [], ax = None, options ={}, levels = []) :
+#     """
+#     Draw the zones and their boundaries obtained for a 2d classifier
+#     Parameters
+#     ----------
+#     grid_resolution : int, optional
+#         DESCRIPTION. resolution of the grid used to draw the contour.
+#         The default is 100.
+#     scatter : bool, optional
+#         DESCRIPTION. The default is False.
+#     options : dict, optional
+#         Options passed to DecisionBoundaryDisplay.from_estimator
 
-    Returns
-    -------
-    None.
+#     Returns
+#     -------
+#     None.
 
-    """
-    X = clf.trainingSet
-    y = clf.trainingSetValues #predict((X-clf._b)/clf._a)
+#     """
+
+#     X = clf.trainingSet
+#     y = clf.trainingSetValues #predict((X-clf._b)/clf._a)
         
-    if len(clf.classes_) == 2 :
-        levels = 0
-    else :
-        levels = len(clf.classes_)-1
+#     if len(clf._classes) == 2 :
+#         levels = 0
+#     else :
+#         levels = len(clf._classes)-1
         
-    default = {'plot_method': "contourf",
-                'levels' : levels}
+#     default = {'plot_method': "contourf",
+#                 'levels' : levels}
         
-    disp = DecisionBoundaryDisplay.from_estimator(
-                clf,
-                (clf.trainingSet-clf._b)/clf._a,
-                ax=ax,
-                grid_resolution=grid_resolution,
-                **{**default, **options},
-            )
-    # ax.set_aspect(1)
-    disp.ax_.set_xlim(0, 1)
-    disp.ax_.set_ylim(0, 1)
+#     disp = DecisionBoundaryDisplay.from_estimator(
+#                 clf,
+#                 (clf.trainingSet-clf._b)/clf._a,
+#                 ax=ax,
+#                 grid_resolution=grid_resolution,
+#                 **{**default, **options},
+#             )
+#     # ax.set_aspect(1)
+#     disp.ax_.set_xlim(0, 1)
+#     disp.ax_.set_ylim(0, 1)
     
-    disp.ax_.xaxis.set_major_formatter(lambda x, pos : "{:.2f}".format(clf._a[0]*x+clf._b[0]))
-    disp.ax_.yaxis.set_major_formatter(lambda y, pos : "{:.2f}".format(clf._a[1]*y+clf._b[1]))
+#     disp.ax_.xaxis.set_major_formatter(lambda x, pos : "{:.2f}".format(clf._a[0]*x+clf._b[0]))
+#     disp.ax_.yaxis.set_major_formatter(lambda y, pos : "{:.2f}".format(clf._a[1]*y+clf._b[1]))
 
-    if scatter :
+#     if scatter :
         
-        for i, c in enumerate(clf.classes_) :
+#         for i, c in enumerate(clf._classes) :
             
-            I = np.where(y == c)[0]
-            disp.ax_.scatter((X[I, 0]-clf._b[0])/clf._a[0], (X[I, 1]-clf._b[1])/clf._a[1], c=colors[i], marker = 'x', label="class "+str(c)) 
+#             I = np.where(y == c)[0]
+#             disp.ax_.scatter((X[I, 0]-clf._b[0])/clf._a[0], (X[I, 1]-clf._b[1])/clf._a[1], c=colors[i], marker = 'x', label="class "+str(c)) 
             
-        disp.ax_.legend()
+#         disp.ax_.legend()
         
-    return(disp.ax_)
+#     return(disp.ax_)
     
 def _contour3d(clf, grid_resolution = 50, scatter = True, classes = [], options ={}) :
     """
@@ -134,13 +135,13 @@ def _contour3d(clf, grid_resolution = 50, scatter = True, classes = [], options 
 
 def __prepare_grid(clf, grid_resolution) :
 
-    if clf.dimension_ == 2 :
+    if clf._dimension == 2 :
     
         # create a mesh to plot in
         x_min, x_max, y_min, y_max = 0, 1, 0, 1
         h = 1/grid_resolution
         xx, yy = np.mgrid[x_min:x_max:h, y_min:y_max:h]
-    
+
         f = clf.decision_function(np.c_[xx.ravel(), yy.ravel()])
 
         xx, yy = clf._a[0]*xx+clf._b[0], clf._a[1]*yy+clf._b[1]
@@ -155,7 +156,7 @@ def __prepare_grid(clf, grid_resolution) :
 
         xx, yy, zz = clf._a[0]*xx+clf._b[0], clf._a[1]*yy+clf._b[1], clf._a[2]*zz+clf._b[2]
                     
-    if len(clf.classes_) == 2 :
+    if len(clf._classes) == 2 :
         
         F = [f.reshape(xx.shape)]        
         
@@ -164,7 +165,7 @@ def __prepare_grid(clf, grid_resolution) :
         F = [f[:, c].reshape(xx.shape) for c in range(f.shape[1])]
 
 
-    if clf.dimension_ == 2 :
+    if clf._dimension == 2 :
         return(xx, yy, F)
 
     return(xx, yy, zz, F)
@@ -196,22 +197,22 @@ def _frontiers2d(clf, grid_resolution = 100, scatter = True, frontiers = [],
             
     xx, yy, F = __prepare_grid(clf, grid_resolution)
                     
-    if len(clf.classes_)  > 2 :
+    if len(clf._classes)  > 2 :
         options += [options[-1]]*(len(clf.decision_function_indices_)-len(options))
 
         label_options += [label_options[-1]]*(len(clf.decision_function_indices_)-len(label_options))
 
-        neighbours_ = clf.neighbours_
+        _neighbours = clf._neighbours
         
         if frontiers == [] :
-                frontiers = clf.neighbours_
+                frontiers = clf._neighbours
     else :
-        neighbours_ = [0, 1]
+        _neighbours = [0, 1]
         frontiers = [0]
             
     for i, f in enumerate(F) :
         
-        if i in neighbours_ and neighbours_[i] in frontiers and not (np.all(f > 0) if f[0, 0] > 0 else np.all(f < 0)) :
+        if i in _neighbours and _neighbours[i] in frontiers and not (np.all(f > 0) if f[0, 0] > 0 else np.all(f < 0)) :
             
             if _backend == "plotly" :
                 
@@ -244,7 +245,7 @@ def _frontiers2d(clf, grid_resolution = 100, scatter = True, frontiers = [],
 
                 default_options = {"levels" :  [0], "antialiased" : True}
 
-                CS = ax.contour(xx, yy, f, **{**default_options, **options[i]})
+                CS = ax.contour(xx, yy, f, **{**default_options, **options[clf._classes[i]]})
 
                 default_options = {"inline" :  True, "fontsize" : 10}
 
@@ -268,7 +269,7 @@ def _frontiers2d(clf, grid_resolution = 100, scatter = True, frontiers = [],
         return(fig)
 
 
-def _classes2d(clf, grid_resolution = 100, scatter = True, classes = [], 
+def _classes2d(clf, grid_resolution = 100, scatter = True, classes = [True], 
                ax = None, fig = None, options = [{}], label_options = [{}], scatter_options = [{}]) :
     """Draw the boundaries obtained for a 3d the classifier
     Parameters
@@ -290,17 +291,21 @@ def _classes2d(clf, grid_resolution = 100, scatter = True, classes = [],
     y = clf.trainingSetValues
             
     xx, yy, F = __prepare_grid(clf, grid_resolution)
-    
-    neighbourhood = set.union(*(set(x) for x in clf.neighbours_))
 
-    # Neighbours _must_ be sorted
-    clf.neighbours_ = [[min(n), max(n)] for n in clf.neighbours_]
+    if len(clf._classes) > 2 :
+    
+        neighbourhood = set.union(*(set(x) for x in clf._neighbours))
+
+    else :
+        neighbourhood = {True, False}
+        clf._neighbours = [[True, False]]
+
     
     for c in classes :
 
-        if c in neighbourhood  :
-
-            f = np.max([(-float(c==n[0])+float(c==n[1]))*F[clf.index_neighbourhood_(n)] for n in clf.neighbours_ if c in n], axis = 0)
+        if c in neighbourhood  :           
+            
+            f = np.max([(-float(c==n[0])+float(c==n[1]))*F[clf._index_neighbourhood(n)] for n in clf._neighbours if c in n], axis = 0)
 
             if _backend == "matplotlib" :
                 
@@ -364,14 +369,14 @@ def _frontiers3d(clf, grid_resolution = 100, scatter = True, frontiers = [],
 
     h = 1/grid_resolution
 
-    if len(clf.classes_)  > 2 :
+    if len(clf._classes)  > 2 :
         options += [options[-1]]*(len(clf.decision_function_indices_)-len(options))
 
         label_options += [label_options[-1]]*(len(clf.decision_function_indices_)-len(label_options))
 
-        _neighbours = clf.neighbours_
+        _neighbours = clf._neighbours
         if frontiers == [] :
-                frontiers = clf.neighbours_
+                frontiers = clf._neighbours
     else :
         _neighbours = [0]
         frontiers = [0]
@@ -453,22 +458,22 @@ def _classes3d(clf, grid_resolution = 100, scatter = True, classes = [],
     """
 
     X = clf.trainingSet
-    y = clf.trainingSetValues
+    Y = [list(clf._classes).index(i) for i in clf.trainingSetValues]
 
-    if (len(clf.classes_)) == 0 :
-        classes = clf.classes_
+    if (len(clf._classes)) == 0 :
+        classes = clf._classes
             
     xx, yy, zz, F = __prepare_grid(clf, grid_resolution)
 
     h = 1/grid_resolution
 
-    neighbourhood = set.union(*(set(x) for x in clf.neighbours_))
+    neighbourhood = set.union(*(set(x) for x in clf._neighbours))
 
     for c in classes :
         
         if c in neighbourhood  :
                     
-            f = np.max([(-float(c==n[0])+float(c==n[1]))*F[clf.index_neighbourhood_(n)] for n in clf.neighbours_ if c in n], axis = 0)
+            f = np.max([(-float(c==n[0])+float(c==n[1]))*F[clf._index_neighbourhood(n)] for n in clf._neighbours if c in n], axis = 0)
             
             if not (np.all(f > 0) if f[0, 0, 0] > 0 else np.all(f < 0)) :
              
@@ -505,14 +510,14 @@ def _classes3d(clf, grid_resolution = 100, scatter = True, classes = [],
                     if ax == None :
                         fig = plt.figure()
                     
-                        ax = fig.add_subplot(111, projection='3d')
+                        ax = fig.add_subplot(111, projection='3d', computed_zorder=False)
     
-                    default_options = {"alpha" : 0.5, "lw" : 0, "antialiased" : True}
+                    default_options = {"alpha" : 0.5, "lw" : 0.0, "antialiased" : False}
                     ax.plot_trisurf(verts[:, 0], verts[:, 1], faces, verts[:, 2], **{**default_options, **options[c]})
                 
     if _backend == "matplotlib" :
         if scatter : 
-            ax.scatter(X[:, 0], X[:, 1], X[:, 2], c=y, cmap=plt.cm.coolwarm)
+            ax.scatter(X[:, 0], X[:, 1], X[:, 2], c=Y, cmap=plt.cm.coolwarm)
         return(ax)
 
     if _backend == "plotly" :

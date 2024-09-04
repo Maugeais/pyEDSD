@@ -6,3 +6,7 @@ pyEDSD-old.py
 tools-old.py
 
 __pycache__/
+
+latex/
+
+docs/

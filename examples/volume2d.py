@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 import time
 import scipy.spatial as spatial
 
+
 def circle(X) :
     
     r = np.sqrt(X[0]**2+X[1]**2)

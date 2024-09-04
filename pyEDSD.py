@@ -8,6 +8,7 @@ Created on Wed Jun  7 08:14:00 2023
 Roughly  translates http://codes.arizona.edu/Research/EDSD#bas08a to python
 """
 
+
 import os
 import sys
 
@@ -25,7 +26,7 @@ import pickle
 
 from lib import plot, tools, random
 
-__version__ = "0.4.1"
+__version__ = "0.5.1"
 
 from functools import partial 
 import scipy.spatial as spatial
@@ -35,38 +36,95 @@ import scipy.spatial as spatial
 plot._backend = "matplotlib"
 
 def set_backend(backend = "matplotlib") :
-    
-    if backend in ["matplotlib", "mayavi", "plotly"] :
+    """
+    Changes the backend used for plotting 
+
+    Parameters
+    ----------
+    backend : string, optional
+        Name of the backend to use, "matplotlib" or "plotly". 
+        The default is "matplotlib".
+
+    Returns
+    -------
+    None.
+
+    """    
+    if backend in ["matplotlib", "plotly"] :
         plot._backend = backend
     else :
-        print("The backend you asked for is not supported")
+        print(f"The backend '{backend}' for is not supported")
         
         
 
 max_random_gradient = 100 # Maximal number of unconclusive gradient iteration
+max_random_gradient_print = True
 
 class svcEDSD(svm.SVC):
     
-    def draw(self, plot_method = "frontiers", grid_resolution = 100, scatter = False, 
-             contour = False, classes = [], frontiers = [], ax = None, fig = None, options = [{}], label_options = [{}], scatter_options = [{}]):
+    def draw(self, plot_method = "frontiers", grid_resolution = 100, scatter = False, classes = [], frontiers = [], ax = None, fig = None, options = [{}], label_options = [{}], scatter_options = [{}]):
         """
-        Draw the zones and their boundaries obtained by the classifier
+        Draw the zones and their boundaries obtained by the classifier using 
+        either matplolib or plotly depending on the backend fixed by set_backend.
+        
+        
         Parameters
         ----------
-        plot_method : {'frontiers', 'classes', 'mesh'}, default is contour, mesh is only for 3d
+        plot_method : string, optional
+            Set the type of plot that has to be drawn, depending on the backend
+        
+            If backend == "matplotlib" (default)
+            
+                * If the dimension is 2
+            
+                    if plot_method == 'frontiers' 
+                        - option is passed to "contour" (cf. https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.contour.html)
+                        - label_options is passed to  "clabel" (cf. https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.clabel.html)
+                        - scatter_options is not yet implemented
+                        
+                    if plot_method == 'classes' 
+                        - option is passed to "contourf" (cf. https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.contour.html)
+                        - label_options is passed to  "Rectangle" (cf. https://matplotlib.org/stable/api/_as_gen/matplotlib.patches.Rectangle.html)
+                        - scatter_options is passed to "scatter" (cf. https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.scatter.html#matplotlib.pyplot.scatter)
+                    
+                * If the dimension is 3
+                    
+                    - option is passed to plot_trisurf (cf. https://matplotlib.org/stable/api/_as_gen/mpl_toolkits.mplot3d.axes3d.Axes3D.plot_trisurf.html#mpl_toolkits.mplot3d.axes3d.Axes3D.plot_trisurf)
+                    - label_options is not yet implemented
+                    - scatter_options is not yet implemented
+                        
+            If backend == "plotly" (default)
+            
+                * If the dimension is 2
+                    
+                    Not yet implemented
+            
+                * If the dimension is 3
+            
+                    - option is passed to Mesh3d (cf. https://plotly.com/python/reference/mesh3d/)
+                    - scatter_options is not yet implemented 
+                                    
         grid_resolution : int, optional
-            DESCRIPTION. resolution of the grid used to draw the contour.
+            resolution of the grid used to draw the contour.
             The default is 100.
         scatter : bool, optional
-            DESCRIPTION. The default is False.
+            The default is False.
+        classes  : list, optional, 
+            Set of classes to be drawn, only relevvant if plot_method = "classes"
+        frontiers : list, optional, 
+            Set of frontiers to be drawn, only relevvant if plot_method = "frontiers"
+        ax : matplotlib.axes or None, default is None
+            Axis to be used to draw when backend is "matplotlib". If None, a new axis is created
+        fig : Figure object or None, default is None
+            Figure to be used to draw when backend is "plotly". If None, a figure is created
 
         Returns
         -------
-        None.
+        In case backend == "matplotlib", returns the axis used to draw, and in case "plotly" returns the figure.
 
         """        
 
-        if (self.dimension_ == 2) : 
+        if (self._dimension == 2) : 
             if plot_method == 'frontiers' : 
                 return(plot._frontiers2d(self, grid_resolution = grid_resolution, scatter = scatter, frontiers = frontiers, ax = ax, 
                                        options = options, label_options = label_options, scatter_options = scatter_options))
@@ -80,7 +138,7 @@ class svcEDSD(svm.SVC):
                 raise ValueError(f"the value {plot_method} is not possible for the vairable plot_method")
                 
             
-        elif (self.dimension_ == 3) : 
+        elif (self._dimension == 3) : 
 
             if plot_method == 'mesh' :
                 plot._contour3d(self, grid_resolution = grid_resolution, scatter = scatter, classes = classes, 
@@ -98,67 +156,155 @@ class svcEDSD(svm.SVC):
             
 
     def show(self, fig = None) :
+        """
+        
+
+        Parameters
+        ----------
+        fig : TYPE, optional
+            DESCRIPTION. The default is None.
+
+        Returns
+        -------
+        None.
+
+        """
 
         plot.show(fig)
         
-    def index_neighbourhood_(self, n) :
+    def _index_neighbourhood(self, n) :
         
-        i0 = np.where(self.classes_ == n[0])[0][0]
-        i1 = np.where(self.classes_ == n[1])[0][0]
+        i0 = np.where(self._classes == n[0])[0][0]
+        i1 = np.where(self._classes == n[1])[0][0]
         i0, i1 = min(i0, i1), max(i0, i1)
                      
         m = 0
         for j in range(i0) :
-            m += len(self.classes_)-j-1
+            m += len(self._classes)-j-1
             
-        m += i1-i0-1
-              
+        m += i1-i0-1              
         return(m)
     
-    def restriction(self, indices, values) :
+    # def restriction(self, indices, values) :
+    #     """
+        
+
+    #     Parameters
+    #     ----------
+    #     indices : TYPE
+    #         DESCRIPTION.
+    #     values : TYPE
+    #         DESCRIPTION.
+
+    #     Returns
+    #     -------
+    #     None.
+
+    #     """
+        
+    #     clf = svcEDSD()
+        
+    #     I = [i for i in range(self._dimension) if i not in indices]
+    #     # print(I)
+        
+    #     clf._a, clf._b = self._a[I], self._b[I]
+    #     clf.trainingSet = []
+    #     clf.trainingSetValues = []
+    #     clf._classes = self._classes
+    #     clf._decision_function_indices = self._decision_function_indices
+    #     clf._neighbours = self._neighbours
+    #     clf._dimension = self._dimension-len(indices)
+    #     clf.decision_function = clf.restricted_decision_function
+    #     clf.parent = self
+    #     clf._indices = indices
+    #     clf._values = values
+    #     return(clf)
+        
+    # def restricted_decision_function(self, x) :
+    #     """
+        
+
+    #     Parameters
+    #     ----------
+    #     x : TYPE
+    #         DESCRIPTION.
+
+    #     Returns
+    #     -------
+    #     None.
+
+    #     """
+        
+    #     x = np.array(x)
+    #     xp = np.zeros((x.shape[0], x.shape[1]+len(self._indices)))
+        
+    #     k = 0
+    #     for i in range(x.shape[1]+len(self._indices)) :
+    #         if i in self._indices :
+    #             j = self._indices.index(i)
+    #             xp[:, i] = self._values[j]
+    #         else :
+    #             xp[:, i] = x[:, k]
+    #             k += 1
+                
+    #     y = self.parent.decision_function(xp)
+    #     return(y)
+
+
+    def restriction(self, bounds, restriction_function) :
+        """
+        
+
+        Parameters
+        ----------
+        indices : TYPE
+            DESCRIPTION.
+        values : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        None.
+
+        """
         
         clf = svcEDSD()
-        
-        I = [i for i in range(self.dimension_) if i not in indices]
-        # print(I)
-        
-        clf._a, clf._b = self._a[I], self._b[I]
+       
+        clf._a, clf._b = np.array(bounds[1])-np.array(bounds[0]), np.array(bounds[0])
+
         clf.trainingSet = []
         clf.trainingSetValues = []
-        clf.classes_ = self.classes_
-        clf.decision_function_indices_ = self.decision_function_indices_
-        clf.neighbours_ = self.neighbours_
-        clf.dimension_ = self.dimension_-len(indices)
+        clf._classes = self._classes
+        clf._decision_function_indices = self._decision_function_indices
+        clf._neighbours = self._neighbours
+        clf._dimension = len(bounds[0]) 
+        clf.restriction_function = restriction_function
         clf.decision_function = clf.restricted_decision_function
-        clf.parent = self
-        clf.indices_ = indices
-        clf.values_ = (np.array(values)-self._b[indices])/self._a[indices]
-        
+        clf.parent = self        
         return(clf)
         
     def restricted_decision_function(self, x) :
+        """
         
-        x = np.array(x)
-        xp = np.zeros((x.shape[0], x.shape[1]+len(self.indices_)))
-        
-        k = 0
-        for i in range(x.shape[1]+len(self.indices_)) :
-            if i in self.indices_ :
-                j = self.indices_.index(i)
-                xp[:, i] = self.values_[j]
-            else :
-                xp[:, i] = x[:, k]
-                k += 1
-                
-        y = self.parent.decision_function(xp)
-        # print(y)
+
+        Parameters
+        ----------
+        x : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        None.
+
+        """        
+        y = self.parent.decision_function((np.array([self.restriction_function(a*self._a+self._b) for a in x])-self.parent._b)/self.parent._a)
         return(y)
 
 
-    def choose_multi_decision_function_(self, class_id = -1) :
+    def _choose_multi_decision_function(self, class_id = -1) :
         
-        if class_id < 0 :
-            classNumber = np.random.choice(self.decision_function_indices_)
+        if type(class_id) == int and class_id < 0 :
+            classNumber = np.random.choice(self._decision_function_indices)
             decision = lambda x : self.decision_function([x])[0][classNumber]**2 #+1/(1+min(np.linalg.norm(self.trainingSet-x, axis=1)**2))
         
         else :
@@ -167,7 +313,7 @@ class svcEDSD(svm.SVC):
             
         return(decision)
         
-    def random_(self, id=0, class_id = -1) :
+    def _random(self, id=0, class_id = -1) :
         """
         Main random function, it should not be called directly
 
@@ -175,13 +321,12 @@ class svcEDSD(svm.SVC):
         ----------
         id : int, optional
             parameter used to initialise the random seed, together with the clock.
-            This is present to prevent many calls to random_ sent at the same time 
+            This is present to prevent many calls to _random sent at the same time 
             that would  give the same result, which can happen if the clock resolution 
             used for the initialization of the seed is too coarse.
             The default is 0.
 
         Raises
-        ------
         Exception 'random'
             If a new point has not been found within the boundaries after a 100 trials
 
@@ -194,9 +339,9 @@ class svcEDSD(svm.SVC):
         
         # np.random.seed((2**3*id+time.time_ns())%(2**32))
             
-        if len(self.classes_) > 2 :
+        if len(self._classes) > 2 :
             
-            decision = self.choose_multi_decision_function_(class_id = class_id) 
+            decision = self._choose_multi_decision_function(class_id = class_id) 
                 
         else :
             
@@ -212,26 +357,24 @@ class svcEDSD(svm.SVC):
             res = minimize(decision, x0, method='CG', options = {})#, bounds=bounds)
             
             # If the result is within the bounds
-            if  res.fun < tol and all([(res.x[i] > 0) and (res.x[i] < 1) for i in range(self.dimension_)]) :
+            if  res.fun < tol and all([(res.x[i] > 0) and (res.x[i] < 1) for i in range(self._dimension)]) :
                 return(self._a*res.x+self._b)         
             
             if n > max_random_gradient :
-                                               
-                if len(self.classes_) == 2 or class_id >= 0 :
-                    raise Exception('random')
-                    
+
                 m += 1
-                
-                if m > len(self.classes_) :
-                    raise Exception('random')              
+                                               
+                if len(self._classes) == 2 or (type(class_id) != int) or m > len(self._classes) :
+                    
+                    raise ValueError('Random')              
                                 
-                decision = self.choose_multi_decision_function_(class_id = class_id) 
+                decision = self._choose_multi_decision_function(class_id = class_id) 
 
                 n = 0
 
             # if it did not work with original pool, try another random element
             n += 1
-            x0 = random.rand(self.dimension_)     
+            x0 = random.rand(self._dimension)     
 
     def reset_random_pool(self, class_id = 0) :
         """
@@ -250,9 +393,9 @@ class svcEDSD(svm.SVC):
 
         # if not hasattr(self, 'random_pool') :
             
-        #     self.random_pool = []
+        #     self._randompool = []
         
-        self.random_pool_ = []
+        self._random_pool = []
         
     def random(self, size=1, processes = 1, verbose = False, class_id = -1) :
         """
@@ -281,38 +424,55 @@ class svcEDSD(svm.SVC):
 
         """
          
-        
+        global max_random_gradient_print
       
         if not hasattr(self, 'random_pool_') :
             
-            self.random_pool_ = []
+            self._random_pool = []
                
-        new_size = max(size-len(self.random_pool_), 0)
+        new_size = max(size-len(self._random_pool), 0)
 
-        random.generate_pool(d = self.dimension_, n = new_size)
+        random.generate_pool(d = self._dimension, n = new_size)
         
         if size == 1 :     
-            return(self.random_())
+            return(self._random())
         
         n = 0
          
-        with multiprocessing.Pool(processes=processes) as pool:
-                    
-            # for r in pool.map(self.random_, range(new_size)):
-            for r in pool.map(partial(parallel_random_, func = self.random_, class_id = class_id), range(new_size)) :
-                    
-                self.random_pool_.append(r)
+        try :
+    
+            with multiprocessing.Pool(processes=processes) as pool:
+                        
+                # for r in pool.map(self._random, range(new_size)):
+                for r in pool.map(partial(_parallel_random, func = self._random, class_id = class_id), range(new_size)) :
+                        
+                    self._random_pool.append(r)
 
-                if verbose : 
-                    n += 1
-                    tools._advBar(int(100*n/new_size))  
-                    
+                    if verbose : 
+                        n += 1
+                        tools._advBar(int(100*n/new_size))  
+
+        except Exception as e :
+
+            if repr(e) == "ValueError('Random')" :
+                if max_random_gradient_print :
+                    print("There may be no point in the set, or the value of 'max_random_gradient' may be too small")
+                    max_random_gradient_print = False
+        
+            else :
+                raise
+
+
         if verbose :
             print("")
                 
-        I = np.random.randint(0, len(self.random_pool_), size=size)
-                
-        return(np.array([self.random_pool_[i] for i in I]))
+        if len(self._random_pool) > 0 :
+            I = np.random.randint(0, len(self._random_pool), size=size)
+                    
+            return(np.array([self._random_pool[i] for i in I]))
+        else :
+            return([])
+
     
     def diameter_estimate(self, size_random = None, class_id = -1, processes = 1) :
         """
@@ -334,7 +494,7 @@ class svcEDSD(svm.SVC):
         """
         
         if size_random == None :
-            size_random = 10**self.dimension_
+            size_random = 10**self._dimension
         
         X = self.random(size=size_random, class_id = class_id, processes = processes)
         
@@ -359,19 +519,32 @@ class svcEDSD(svm.SVC):
         None.
 
         """
-        
+
+
+        global max_random_gradient_print
+                
         if size_random == None :
-            size_random = 10**self.dimension_
+            size_random = 10**self._dimension
             
-        try :
+        # try :
     
-            X = np.array(self.random(size=size_random, class_id = class_id, processes = processes))
+        X = np.array(self.random(size=size_random, class_id = class_id, processes = processes))    
+
+        if len(X) > 0 :
+            return([np.array([min(X[:, i]) for i in range(self._dimension)]), np.array([max(X[:, i]) for i in range(self._dimension)])])
+        else :
+            return([[0 for i in range(self._dimension)], [0 for i in range(self._dimension)]])
+
+        # except Exception as e :
+
+        #     if repr(e) == "ValueError('Random')" :
+        #         if max_random_gradient_print :
+        #             print("There may be no point in the set, or the value of 'max_random_gradient' may be too small")
+        #             max_random_gradient_print = False
         
-    
-            return([np.array([min(X[:, 0]), min(X[:, 1])]), np.array([max(X[:, 0]), max(X[:, 1])])])
-    
-        except :
-            return([[0, 0], [0, 0]])
+        #     else :
+        #         raise
+            
     
     def dist_from(self, P=[], size_random=None, class_id = -1, processes = 1) :
         """
@@ -394,22 +567,20 @@ class svcEDSD(svm.SVC):
         """
         
         if size_random == None :
-            size_random = 10**self.dimension_
+            size_random = 10**self._dimension
     
         X = np.array(self.random(size=size_random, class_id = class_id, processes = processes))
         
         plot.scatter(*P)
         return(min(np.linalg.norm(X-np.array(P), axis=1)))
     
-    def delaunay(self, class_id = -1, frontier = [0, 1], n_boundary = 0, n_interior = 10, draw = False, 
-                 ax = None, processes = 1) :
+    def delaunay(self, class_id = -1, frontier = [0, 1], n_boundary = 0, n_interior = 10, draw = False, ax = None, processes = 1) :
         """
         Compute a delaunay triangulation one region given by the classifier .
         For this, a delaunay triangulation is computing using :
-            - the points of the training set
-            - points on the boundary, using the random function
-            - points in the interior, obtained using n_interior**dim points 
-                chosen randomly within the boundaries, and sorted using the classifier
+        - the points of the training set
+        - points on the boundary, using the random function
+        - points in the interior, obtained using n_interior**dim points chosen randomly within the boundaries, and sorted using the classifier
                 
         As Delaunay triangulation depends on the metric, it is computed with inhomogenous data
 
@@ -425,12 +596,13 @@ class svcEDSD(svm.SVC):
         Returns
         -------
         None.
+        
         """
     
         # Compute a Dalaunay triangulation
         # frontier = [min(frontier), max(frontier)]
-        # if len(self.classes_) > 2 :
-        #     index = self.decision_function_indices_[self.neighbours_.index(frontier)]
+        # if len(self._classes) > 2 :
+        #     index = self._decision_function_indices[self._neighbours.index(frontier)]
         # else :
         #     index = 0
       
@@ -441,16 +613,16 @@ class svcEDSD(svm.SVC):
         m, M = np.min(points, axis = 0), np.max(points, axis = 0)
         
         # Then the points in the interior
-        n_interior = max(n_interior, 2**self.dimension_)
+        n_interior = max(n_interior, 2**self._dimension)
 
-        random.generate_pool(self.dimension_, n_interior)
+        random.generate_pool(self._dimension, n_interior)
         
 
         rand = (M-m)*random.pool_+m
         
         
 
-        if len(self.classes_) == 2 :
+        if len(self._classes) == 2 :
                         
             decision = self.homogenous_decision_function
             
@@ -470,7 +642,7 @@ class svcEDSD(svm.SVC):
         
         if draw :
             
-            if self.dimension_ == 2 :
+            if self._dimension == 2 :
                         
                 ax.triplot(tri.points[:, 0], tri.points[:, 1], tri.simplices)
      
@@ -506,7 +678,7 @@ class svcEDSD(svm.SVC):
         return(self.decision_function((X-self._b)/self._a))
     
     def class_decision_function(self, x, class_id) :
-        res = np.max([(-float(class_id==n[0])+float(class_id==n[1]))*self.decision_function(x)[:, self.index_neighbourhood_(n)] for n in self.neighbours_ if class_id in n], axis = 0)
+        res = np.max([(-float(class_id==n[0])+float(class_id==n[1]))*self.decision_function(x)[:, self._index_neighbourhood(n)] for n in self._neighbours if class_id in n], axis = 0)
         return(res)
     
     def homogenous_class_decision_function(self, X, class_id) :
@@ -546,7 +718,7 @@ class svcEDSD(svm.SVC):
                 
             if processes == 1 :
                 
-                x0 = clf.random_()
+                x0 = clf._random()
                 X.append(x0)
                 y.append(self.func(x0))
             
@@ -556,7 +728,7 @@ class svcEDSD(svm.SVC):
                 
                     with multiprocessing.Pool(processes=processes) as pool:
                         
-                        for r in pool.map(partial(parallel_random_eval_, func1=clf.random_, func2=self.func), range(processes)):
+                        for r in pool.map(partial(_parallel_randomeval, func1=clf._random, func2=self.func), range(processes)):
 
                             if r[1] != -1 :
                                 X.append(r[0])
@@ -564,16 +736,14 @@ class svcEDSD(svm.SVC):
                                 
                 except KeyboardInterrupt:
                     print('\nStopping at {}%'.format(100*n*processes/N1))
-                    clf = fit_(self.func, self.svc, X, y, self._a, self._b, neighbours)
+                    clf = _fit(self.func, self.svc, X, y, self._a, self._b, neighbours)
                     break
                 
                 except BaseException as error:
-                    print(error)
-                    clf = fit_(self.func, self.svc, X, y, self._a, self._b, neighbours)
+                    clf = _fit(self.func, self.svc, X, y, self._a, self._b, neighbours)
                     
                     break
-    
-            clf = fit_(self.func, self.svc, X, y, self._a, self._b, neighbours)    
+            clf = _fit(self.func, self.svc, X, y, self._a, self._b, neighbours)    
                 
             if verbose : 
                 tools._advBar(int(100*n*processes/N1))
@@ -582,7 +752,7 @@ class svcEDSD(svm.SVC):
                                         
         return(clf)
 
-def relevant_distances(classes, neighbours) :
+def _relevant_distances(classes, neighbours) :
     """
     Compute the indeces of the distance for the set of neighbouring regieons stored in neighbours
 
@@ -601,41 +771,43 @@ def relevant_distances(classes, neighbours) :
     if len(neighbours) == 0 :
         for i in range(len(classes)) :
             for j in range(i+1, len(classes)) :
-                neighbours += [[i, j]]
+                neighbours += [[classes[i], classes[j]]]
     
     # Order as a function of classes is details in https://scikit-learn.org/stable/modules/svm.html, Details on multi-class strategies
     distances = []
     existing_neighbours = []
     
     for n in neighbours :
-        i0 = np.where(classes == n[0])[0]
-        i1 = np.where(classes == n[1])[0]
-        if (len(i0) > 0 and len(i1) > 0) :
-            i0, i1 = min(i0[0], i1[0]), max(i0[0], i1[0])
-        
-            m = 0
-            for j in range(i0) :
-                m += len(classes)-j-1
-                
-            m += i1-i0-1
+
+        if (n[0] in classes) and (n[1] in classes) :
+            i0 = np.where(classes == n[0])[0]
+            i1 = np.where(classes == n[1])[0]
+            if (len(i0) > 0 and len(i1) > 0) :
+                i0, i1 = min(i0[0], i1[0]), max(i0[0], i1[0])
             
-            distances.append(m)
-            existing_neighbours.append([min(n), max(n)])
+                m = 0
+                for j in range(i0) :
+                    m += len(classes)-j-1
+                    
+                m += i1-i0-1
+                
+                distances.append(m)
+                existing_neighbours.append([min(n), max(n)])
                             
     return(distances, existing_neighbours)
 
-def parallel_random_(id, func, class_id) :
+def _parallel_random(id, func, class_id) :
    
     x = func(id, class_id)
     return(x)
 
-def parallel_random_eval_(id, func1, func2) :
+def _parallel_randomeval(id, func1, func2) :
     
     x = func1(id)
     y = func2(x)
     return([x, y])
     
-def fit_(func, svc, X, y, a, b, neighbours) :
+def _fit(func, svc, X, y, a, b, neighbours) :
     """
     
 
@@ -656,15 +828,16 @@ def fit_(func, svc, X, y, a, b, neighbours) :
 
     """
     clf = svm.SVC(**svc).fit((X-b)/a, y)
+    clf._classes = clf.classes_
     clf._a, clf._b = a, b
     clf.__class__ = svcEDSD
     clf.trainingSet = np.array(X)
     clf.trainingSetValues = np.array(y)
     clf.func = func
     clf.svc = svc   
-    clf.dimension_ = len(a)
-    if (len(clf.classes_) > 2) :
-        clf.decision_function_indices_, clf.neighbours_ = relevant_distances(clf.classes_, neighbours)
+    clf._dimension = len(a)
+    if (len(clf._classes) > 2) :
+        clf._decision_function_indices, clf._neighbours = _relevant_distances(clf._classes, neighbours)
     
     return(clf)
     
@@ -802,13 +975,12 @@ def edsd(func, X0=[], bounds=[], N0 = 10, N1 = 10, processes = 1, classes = 1,
     # if classes > 2 :
     svc["decision_function_shape"]='ovo'
         
-    clf = fit_(func, svc, X, y, a, b, neighbours)
+    clf = _fit(func, svc, X, y, a, b, neighbours)
     
     if verbose : 
-        print("Classes found: ", clf.classes_)
-        print("Number of points in each class:", [str(c) + ':' + str(len(np.where(y==c)[0])) for c in clf.classes_])
+        print("\n Classes found: ", clf._classes)
+        print("Number of points in each class:", [str(c) + ':' + str(len(np.where(y==c)[0])) for c in clf._classes])
         
-    
     clf = clf.expand(N1, processes = processes, verbose = verbose, neighbours = neighbours)
 
     clf.removed = removed
@@ -816,7 +988,7 @@ def edsd(func, X0=[], bounds=[], N0 = 10, N1 = 10, processes = 1, classes = 1,
     # Get the bounds for all the classes in a dictionnary
     clf.classBounds = dict()
         
-    for c in clf.classes_ :
+    for c in clf._classes :
         
         I = np.where(clf.trainingSetValues == c)[0]
                 
@@ -824,7 +996,7 @@ def edsd(func, X0=[], bounds=[], N0 = 10, N1 = 10, processes = 1, classes = 1,
                                 [max([clf.trainingSet[i][j] for i in I]) for j in range(len(clf.trainingSet[0]))]]  
                                       
     if verbose : 
-        print("\nFinal set of classes : ", clf.classes_)
+        print("\nFinal set of classes : ", clf._classes)
               
     return(clf)
     

@@ -23,7 +23,7 @@ if __name__ == "__main__" :
       
     bounds = [[-2, -2], [2, 2]]
     
-    clf = edsd.edsd(func, X0=[[0, 0], [0.5, 0.5], [1, 1], [1.5, 1.5]], bounds=bounds, processes=4, classes =5, N0 = 20, 
+    clf = edsd.edsd(func, X0=[[0, 0], [0.5, 0.5], [1, 1], [1.5, 1.5]], bounds=bounds, processes=4, N0 = 20, 
                     N1 = 1000, svc=dict(C = 100), neighbours = [[1,2], [2, 3], [3, 4], [0, 1], [0, 2], [0, 3], [0, 4]]) 
     
     edsd.save(clf, "multi.edsd")

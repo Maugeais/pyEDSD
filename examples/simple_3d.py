@@ -31,7 +31,7 @@ if __name__ == "__main__" :
     edsd.set_backend("plotly")
 
     
-    clf = edsd.edsd(f1, X0=[[0, 0, 0], [1, 1, 1]], bounds=bounds,  processes=4, classes = 4, N0 = 10,
+    clf = edsd.edsd(f1, X0=[[0, 0, 0], [1, 1, 1]], bounds=bounds,  processes=4, N0 = 10,
                         N1 = 200, svc=dict(C = 1000), neighbours=[[0, 1], [1, 2], [2, 3]])
 
     edsd.save(clf, "3d.edsd")

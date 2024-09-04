@@ -9,7 +9,7 @@ options = {0 : {"name" : "Test 1", "showlegend" : True},
             2 : {"name" : "Titi 3", "showlegend" : True},
             3 : {"name" : "Titi 3", "showlegend" : True}}
 
-fig = clf.draw(plot_method = "classes", scatter = True, classes = clf.classes_, options = options)
+fig = clf.draw(plot_method = "classes", scatter = False, classes = clf.classes_, options = options)
 
 fig.update_layout(
     title="Example of EDSD in 3d",
