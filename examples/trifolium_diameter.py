@@ -13,9 +13,8 @@ def computation_time(processes) :
     times = []
     N = range(50, 1500, 50)
     for n in N :
-        print(n, processes)
         t0 = time.time()
-        # clf.reset_random_pool()
+        clf.reset_random_pool()
         diameters.append(clf.diameter_estimate(class_id = 0, size_random = n, processes = processes))
         times.append(time.time()-t0)
         
@@ -26,7 +25,6 @@ def computation_time(processes) :
 if __name__ == "__main__" :
  
     
-    edsd.random.set_random_generator("Sobol")
     clf =  edsd.load("trifolium.edsd")
     
 

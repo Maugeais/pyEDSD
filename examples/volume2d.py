@@ -52,13 +52,20 @@ if __name__ == "__main__" :
     t0 = time.time()
 
     clf = edsd.edsd(circle, X0=[[-0.5, 0], [0.5, 0], [1, 1]], bounds=bounds, processes=4, classes = 2, verbose = True,
-                    N1 = 200, svc=dict(C = 1000, gamma = 1))
+                    N1 = 100, svc=dict(C = 1000, gamma = 1))
+
     
-    print("Temps de calcul", time.time()-t0)
+    print("EDSD computation time", time.time()-t0)
 
 
-    clf.draw()
+    ax = clf.draw()
+
+    clf.delaunay(class_id = 0, n_boundary = 200, n_interior = 2**10, draw = True, ax = ax)
     
-    print(clf.volume(False))
+    t0 = time.time()
+
+    print(clf.volume(class_id = 0, n_boundary = 200, n_interior = 2**10))
+
+    print("Volume computation time", time.time()-t0)
 
     plt.show()

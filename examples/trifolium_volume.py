@@ -8,8 +8,6 @@ import time
 
 if __name__ == "__main__" :
  
-    
-    edsd.random.set_random_generator("Sobol")
     clf =  edsd.load("trifolium.edsd")
     
     ax = clf.draw(options = [{"levels" : [0]}])

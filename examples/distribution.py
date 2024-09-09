@@ -160,8 +160,15 @@ def compare_to_ref(func, N1 = 100, size = 1000, curvature = False, label = "", c
     discr = np.reshape(discrepancy[1:]-discrepancy[:1], (len(discrepancy)-1, 1))
     
     discr = np.reshape(dist[1:]-dist[:1], (len(dist)-1, 1))
+    
+    try : 
+        from scipy.stats import qmc
+        label = f"discrepancy -> {qmc.discrepancy(discr):.5f}"
+    except :
+        print("The library 'scipy.stats.qmc' is not available")
+        label=""
 
-    axis.plot(s1, dist, label=f"{label} -> {edsd.random.discrepancy(discr):.5f}")
+    axis.plot(s1, dist, label=label)
     plt.xlabel("Parametrisation")
     plt.ylabel("Empirical distribution")
         
@@ -177,18 +184,11 @@ if __name__ == "__main__" :
     # Test on trifolium
     clf =  edsd.load("trifolium.edsd")
 
-    edsd.random.set_random_generator("Sobol")
     ref = []
     ref = compare_to_ref(trifolium, size=10000, label =  "Reference", clf= clf)
     size = 100
-    compare_to_ref(trifolium, size=size, label =  "Sobol", clf= clf, ref = ref)
-    edsd.random.set_random_generator("Halton", scramble= True)
-    compare_to_ref(trifolium, size=size, label =  "Halton", clf= clf, ref = ref)
-    edsd.random.set_random_generator("numpy")
+
     compare_to_ref(trifolium, size=size, label =  "numpy", clf= clf, ref = ref)
-    edsd.random.set_random_generator("Latin", scramble=True, strength=1)
-    compare_to_ref(trifolium, size=size, label =  "Latin", clf= clf, ref = ref)
-    edsd.random.set_random_generator("Poisson")
-    compare_to_ref(trifolium, size=size, label =  "Poisson", clf= clf, ref = ref)
+
 
     plt.show()

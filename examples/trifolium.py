@@ -13,7 +13,7 @@ def trifolium(X) :
 
 if __name__ == "__main__" :
  
-    edsd.random.set_random_generator("Sobol")
+    # edsd.random.set_random_generator("Sobol")
     clf =  edsd.edsd(trifolium, X0=[[-0.5, 0], [0.25, 0.25], [0.25, -0.25]], bounds= [[-2, -2], [2, 2]], 
                             processes=10, classes = 2, verbose = True,
                             N0 = 1000, N1 = 3000, svc=dict(C = 1000))

@@ -24,9 +24,9 @@ import multiprocessing
 import time
 import pickle
 
-from lib import plot, tools, random
+from lib import plot, tools
 
-__version__ = "0.5.1"
+__version__ = "0.5.2"
 
 from functools import partial 
 import scipy.spatial as spatial
@@ -337,7 +337,7 @@ class svcEDSD(svm.SVC):
         """
         tol = 1e-3
         
-        # np.random.seed((2**3*id+time.time_ns())%(2**32))
+        np.random.seed((2**3*id+time.time_ns())%(2**32))
             
         if len(self._classes) > 2 :
             
@@ -350,7 +350,7 @@ class svcEDSD(svm.SVC):
         n = m = 0
 
         # Try first the official pool
-        x0 = random.get_from_pool(id)
+        x0 = np.random.random(self._dimension)
         
         while True : 
                  
@@ -374,7 +374,8 @@ class svcEDSD(svm.SVC):
 
             # if it did not work with original pool, try another random element
             n += 1
-            x0 = random.rand(self._dimension)     
+
+            x0 = np.random.random(self._dimension)
 
     def reset_random_pool(self, class_id = 0) :
         """
@@ -426,13 +427,11 @@ class svcEDSD(svm.SVC):
          
         global max_random_gradient_print
       
-        if not hasattr(self, 'random_pool_') :
+        if not hasattr(self, '_random_pool') :
             
             self._random_pool = []
                
         new_size = max(size-len(self._random_pool), 0)
-
-        random.generate_pool(d = self._dimension, n = new_size)
         
         if size == 1 :     
             return(self._random())
@@ -599,15 +598,7 @@ class svcEDSD(svm.SVC):
         
         """
     
-        # Compute a Dalaunay triangulation
-        # frontier = [min(frontier), max(frontier)]
-        # if len(self._classes) > 2 :
-        #     index = self._decision_function_indices[self._neighbours.index(frontier)]
-        # else :
-        #     index = 0
-      
-        # Creates the points in the boundary
-        # points = self.random(n_boundary, class_id = index)
+        # Creates the points on the boundary
         points = self.random(n_boundary, class_id = class_id, processes = processes)
 
         m, M = np.min(points, axis = 0), np.max(points, axis = 0)
@@ -615,13 +606,8 @@ class svcEDSD(svm.SVC):
         # Then the points in the interior
         n_interior = max(n_interior, 2**self._dimension)
 
-        random.generate_pool(self._dimension, n_interior)
-        
-
-        rand = (M-m)*random.pool_+m
-        
-        
-
+        rand = (M-m)*np.random.random((n_interior, self._dimension))+m
+ 
         if len(self._classes) == 2 :
                         
             decision = self.homogenous_decision_function
@@ -650,7 +636,7 @@ class svcEDSD(svm.SVC):
     
         
     
-    def volume(self, class_id, n_boundary = 0, n_interior = 10, processes = 1) :
+    def volume(self, class_id, n_boundary = 100, n_interior = 500, processes = 1) :
         """
         Compute the volume of one region given by the classifier defined by value.
 
@@ -739,10 +725,22 @@ class svcEDSD(svm.SVC):
                     clf = _fit(self.func, self.svc, X, y, self._a, self._b, neighbours)
                     break
                 
-                except BaseException as error:
-                    clf = _fit(self.func, self.svc, X, y, self._a, self._b, neighbours)
+                except Exception as e :
+
+                    if repr(e) == "ValueError('Random')" :
+                        if max_random_gradient_print :
+                            print("There may be no point in the set, or the value of 'max_random_gradient' may be too small")
+                            max_random_gradient_print = False
+                            clf = _fit(self.func, self.svc, X, y, self._a, self._b, neighbours)
+                
+                    else :
+                        raise
+                # except BaseException as error:
+                #     raise
+                #     clf = _fit(self.func, self.svc, X, y, self._a, self._b, neighbours)
                     
-                    break
+                #     break
+
             clf = _fit(self.func, self.svc, X, y, self._a, self._b, neighbours)    
                 
             if verbose : 
@@ -942,15 +940,12 @@ def edsd(func, X0=[], bounds=[], N0 = 10, N1 = 10, processes = 1, classes = 1,
      
     bounds = [np.array(x) for x in bounds]    
    
-    # Ajout de points aléatoires uniform dans bounds
     
     if verbose :
         print("Creation of first set")
-
-    random.generate_pool(len(bounds[0]), N0)
-    X += list(a*random.pool_+b)   
+ 
+    X += list(a*np.random.rand(N0, len(bounds[0]))+b)
                 
-    # print(random.discrepency(X))
     # Calcul des valeurs des fonctions
     n = 0        
     with multiprocessing.Pool(processes=processes) as pool:

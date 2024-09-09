@@ -198,9 +198,9 @@ def _frontiers2d(clf, grid_resolution = 100, scatter = True, frontiers = [],
     xx, yy, F = __prepare_grid(clf, grid_resolution)
                     
     if len(clf._classes)  > 2 :
-        options += [options[-1]]*(len(clf.decision_function_indices_)-len(options))
+        options += [options[-1]]*(len(clf._decision_function_indices)-len(options))
 
-        label_options += [label_options[-1]]*(len(clf.decision_function_indices_)-len(label_options))
+        label_options += [label_options[-1]]*(len(clf._decision_function_indices)-len(label_options))
 
         _neighbours = clf._neighbours
         
@@ -370,9 +370,9 @@ def _frontiers3d(clf, grid_resolution = 100, scatter = True, frontiers = [],
     h = 1/grid_resolution
 
     if len(clf._classes)  > 2 :
-        options += [options[-1]]*(len(clf.decision_function_indices_)-len(options))
+        options += [options[-1]]*(len(clf._decision_function_indices)-len(options))
 
-        label_options += [label_options[-1]]*(len(clf.decision_function_indices_)-len(label_options))
+        label_options += [label_options[-1]]*(len(clf._decision_function_indices)-len(label_options))
 
         _neighbours = clf._neighbours
         if frontiers == [] :

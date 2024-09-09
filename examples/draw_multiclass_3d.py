@@ -4,10 +4,10 @@ clf = edsd.load("multi_3d.edsd")
 
 edsd.set_backend("plotly")
 
-options = {0 : {"name" : "Test 1", "showlegend" : True}, 
-            1 : {"name" : "Toto 2", "showlegend" : True},
-            2 : {"name" : "Titi 3", "showlegend" : True},
-            3 : {"name" : "Titi 3", "showlegend" : True}}
+options = {'0' : {"name" : "Test 1", "showlegend" : True}, 
+            '1' : {"name" : "Toto 2", "showlegend" : True},
+            '2' : {"name" : "Titi 3", "showlegend" : True},
+            '3' : {"name" : "Titi 3", "showlegend" : True}}
 
 fig = clf.draw(plot_method = "classes", scatter = False, classes = clf.classes_, options = options)
 
