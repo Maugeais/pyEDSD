@@ -253,7 +253,7 @@ def _frontiers2d(clf, grid_resolution = 100, scatter = True, frontiers = [],
                     ax.clabel(CS, CS.levels, **{**default_options, **label_options[i]})
             
                 if scatter : 
-                        ax.scatter(X[:, 0], X[:, 1], c=y)
+                        ax.scatter(X[:, 0], X[:, 1], c=y,  **scatter_options)
 
                 plt.tight_layout()
             

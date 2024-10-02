@@ -19,11 +19,13 @@ if __name__ == "__main__" :
 
     
 
-    clf.set_random_box([[-0.3, -0.3], [0.3, 0.3]])
+    clf = clf.set_random_box([[-0.3, -0.3], [0.3, 0.3]])
 
     clf = clf.expand(1000, processes=10, verbose = True)
 
-    ax = clf.draw(scatter = True, options = [{"levels" : [0]}])
+    clf = clf.set_random_box([[-2, -2], [2, 2]])
+
+    ax = clf.draw(scatter = True, options = [{"levels" : [0]}], scatter_options={'marker':'x'})
     
     clf.show()
 

@@ -26,7 +26,7 @@ import pickle
 
 from lib import plot, tools
 
-__version__ = "0.5.3"
+__version__ = "0.5.3.1"
 
 from functools import partial 
 import scipy.spatial as spatial
@@ -406,7 +406,10 @@ class svcEDSD(svm.SVC):
             return([])
 
     def set_random_box(self, bounds) :
-        self._a, self._b = np.array(bounds[1])-np.array(bounds[0]), np.array(bounds[0])
+        _a, _b = np.array(bounds[1])-np.array(bounds[0]), np.array(bounds[0])
+        clf = _fit(self.func, self.svc, self.trainingSet, self.trainingSetValues, _a, _b, None)
+        return(clf)
+
 
 
 
