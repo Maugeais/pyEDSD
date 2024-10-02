@@ -20,13 +20,13 @@ from sklearn import svm
 from scipy.optimize import minimize
 from scipy.spatial.distance import pdist
 
-import multiprocessing
+import multiprocess
 import time
 import pickle
 
 from lib import plot, tools
 
-__version__ = "0.5.2"
+__version__ = "0.5.3"
 
 from functools import partial 
 import scipy.spatial as spatial
@@ -55,10 +55,10 @@ def set_backend(backend = "matplotlib") :
     else :
         print(f"The backend '{backend}' for is not supported")
         
-        
+def identity(x) :
+    return(x)
 
 max_random_gradient = 100 # Maximal number of unconclusive gradient iteration
-max_random_gradient_print = True
 
 class svcEDSD(svm.SVC):
     
@@ -185,99 +185,38 @@ class svcEDSD(svm.SVC):
         m += i1-i0-1              
         return(m)
     
-    # def restriction(self, indices, values) :
-    #     """
-        
-
-    #     Parameters
-    #     ----------
-    #     indices : TYPE
-    #         DESCRIPTION.
-    #     values : TYPE
-    #         DESCRIPTION.
-
-    #     Returns
-    #     -------
-    #     None.
-
-    #     """
-        
-    #     clf = svcEDSD()
-        
-    #     I = [i for i in range(self._dimension) if i not in indices]
-    #     # print(I)
-        
-    #     clf._a, clf._b = self._a[I], self._b[I]
-    #     clf.trainingSet = []
-    #     clf.trainingSetValues = []
-    #     clf._classes = self._classes
-    #     clf._decision_function_indices = self._decision_function_indices
-    #     clf._neighbours = self._neighbours
-    #     clf._dimension = self._dimension-len(indices)
-    #     clf.decision_function = clf.restricted_decision_function
-    #     clf.parent = self
-    #     clf._indices = indices
-    #     clf._values = values
-    #     return(clf)
-        
-    # def restricted_decision_function(self, x) :
-    #     """
-        
-
-    #     Parameters
-    #     ----------
-    #     x : TYPE
-    #         DESCRIPTION.
-
-    #     Returns
-    #     -------
-    #     None.
-
-    #     """
-        
-    #     x = np.array(x)
-    #     xp = np.zeros((x.shape[0], x.shape[1]+len(self._indices)))
-        
-    #     k = 0
-    #     for i in range(x.shape[1]+len(self._indices)) :
-    #         if i in self._indices :
-    #             j = self._indices.index(i)
-    #             xp[:, i] = self._values[j]
-    #         else :
-    #             xp[:, i] = x[:, k]
-    #             k += 1
-                
-    #     y = self.parent.decision_function(xp)
-    #     return(y)
-
-
-    def restriction(self, bounds, restriction_function) :
+    def restriction(self, bounds = None, restriction_function = identity) :
         """
         
 
         Parameters
         ----------
-        indices : TYPE
-            DESCRIPTION.
-        values : TYPE
-            DESCRIPTION.
-
+        bounds : list of 2 n-dimensionnal vector, or None
+            Indicating the lower and lower bounds for the restricted clf
+            If None, the bounds are kept as the parent's bounds
+        restriction_function : function
+            Mapping from the restricted set to the parent definition set.
+        
         Returns
         -------
-        None.
+        svcEDSD
 
         """
         
         clf = svcEDSD()
-       
-        clf._a, clf._b = np.array(bounds[1])-np.array(bounds[0]), np.array(bounds[0])
+
+        if bounds == None :
+            clf._a, clf._b = self._a, self._b
+        else :
+            clf._a, clf._b = np.array(bounds[1])-np.array(bounds[0]), np.array(bounds[0])
 
         clf.trainingSet = []
         clf.trainingSetValues = []
         clf._classes = self._classes
-        clf._decision_function_indices = self._decision_function_indices
-        clf._neighbours = self._neighbours
-        clf._dimension = len(bounds[0]) 
+        if (len(clf._classes) > 2) :
+            clf._decision_function_indices = self._decision_function_indices
+            clf._neighbours = self._neighbours
+        clf._dimension = len(clf._a) 
         clf.restriction_function = restriction_function
         clf.decision_function = clf.restricted_decision_function
         clf.parent = self        
@@ -349,7 +288,6 @@ class svcEDSD(svm.SVC):
             
         n = m = 0
 
-        # Try first the official pool
         x0 = np.random.random(self._dimension)
         
         while True : 
@@ -424,9 +362,7 @@ class svcEDSD(svm.SVC):
         None.
 
         """
-         
-        global max_random_gradient_print
-      
+               
         if not hasattr(self, '_random_pool') :
             
             self._random_pool = []
@@ -440,9 +376,8 @@ class svcEDSD(svm.SVC):
          
         try :
     
-            with multiprocessing.Pool(processes=processes) as pool:
+            with multiprocess.Pool(processes=processes) as pool:
                         
-                # for r in pool.map(self._random, range(new_size)):
                 for r in pool.map(partial(_parallel_random, func = self._random, class_id = class_id), range(new_size)) :
                         
                     self._random_pool.append(r)
@@ -454,9 +389,7 @@ class svcEDSD(svm.SVC):
         except Exception as e :
 
             if repr(e) == "ValueError('Random')" :
-                if max_random_gradient_print :
-                    print("There may be no point in the set, or the value of 'max_random_gradient' may be too small")
-                    max_random_gradient_print = False
+                pass
         
             else :
                 raise
@@ -471,6 +404,11 @@ class svcEDSD(svm.SVC):
             return(np.array([self._random_pool[i] for i in I]))
         else :
             return([])
+
+    def set_random_box(self, bounds) :
+        self._a, self._b = np.array(bounds[1])-np.array(bounds[0]), np.array(bounds[0])
+
+
 
     
     def diameter_estimate(self, size_random = None, class_id = -1, processes = 1) :
@@ -519,31 +457,17 @@ class svcEDSD(svm.SVC):
 
         """
 
-
-        global max_random_gradient_print
                 
         if size_random == None :
             size_random = 10**self._dimension
-            
-        # try :
-    
+                
         X = np.array(self.random(size=size_random, class_id = class_id, processes = processes))    
 
         if len(X) > 0 :
             return([np.array([min(X[:, i]) for i in range(self._dimension)]), np.array([max(X[:, i]) for i in range(self._dimension)])])
         else :
             return([[0 for i in range(self._dimension)], [0 for i in range(self._dimension)]])
-
-        # except Exception as e :
-
-        #     if repr(e) == "ValueError('Random')" :
-        #         if max_random_gradient_print :
-        #             print("There may be no point in the set, or the value of 'max_random_gradient' may be too small")
-        #             max_random_gradient_print = False
-        
-        #     else :
-        #         raise
-            
+          
     
     def dist_from(self, P=[], size_random=None, class_id = -1, processes = 1) :
         """
@@ -712,7 +636,7 @@ class svcEDSD(svm.SVC):
  
                 try :
                 
-                    with multiprocessing.Pool(processes=processes) as pool:
+                    with multiprocess.Pool(processes=processes) as pool:
                         
                         for r in pool.map(partial(_parallel_randomeval, func1=clf._random, func2=self.func), range(processes)):
 
@@ -728,23 +652,16 @@ class svcEDSD(svm.SVC):
                 except Exception as e :
 
                     if repr(e) == "ValueError('Random')" :
-                        if max_random_gradient_print :
-                            print("There may be no point in the set, or the value of 'max_random_gradient' may be too small")
-                            max_random_gradient_print = False
-                            clf = _fit(self.func, self.svc, X, y, self._a, self._b, neighbours)
+                    
+                        clf = _fit(self.func, self.svc, X, y, self._a, self._b, neighbours)
                 
                     else :
                         raise
-                # except BaseException as error:
-                #     raise
-                #     clf = _fit(self.func, self.svc, X, y, self._a, self._b, neighbours)
-                    
-                #     break
 
             clf = _fit(self.func, self.svc, X, y, self._a, self._b, neighbours)    
                 
             if verbose : 
-                tools._advBar(int(100*n*processes/N1))
+                tools._advBar(int(100*(n+1)*processes/N1))
             
             n += 1
                                         
@@ -932,7 +849,7 @@ def edsd(func, X0=[], bounds=[], N0 = 10, N1 = 10, processes = 1, classes = 1,
     X = X0.copy()
     y =[]
         
-    processes = min(multiprocessing.cpu_count(), processes)
+    processes = min(multiprocess.cpu_count(), processes)
     
     # Normalisation
     b = np.array(bounds[0])
@@ -948,7 +865,7 @@ def edsd(func, X0=[], bounds=[], N0 = 10, N1 = 10, processes = 1, classes = 1,
                 
     # Calcul des valeurs des fonctions
     n = 0        
-    with multiprocessing.Pool(processes=processes) as pool:
+    with multiprocess.Pool(processes=processes) as pool:
                 
         for r in pool.map(func, X):
             y.append(r)
