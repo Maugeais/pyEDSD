@@ -26,7 +26,7 @@ import pickle
 
 from lib import plot, tools
 
-__version__ = "0.5.3.1"
+__version__ = "0.5.3.2"
 
 from functools import partial 
 import scipy.spatial as spatial
@@ -405,7 +405,7 @@ class svcEDSD(svm.SVC):
         else :
             return([])
 
-    def set_random_box(self, bounds) :
+    def set_bounds(self, bounds) :
         _a, _b = np.array(bounds[1])-np.array(bounds[0]), np.array(bounds[0])
         clf = _fit(self.func, self.svc, self.trainingSet, self.trainingSetValues, _a, _b, None)
         return(clf)
@@ -598,7 +598,7 @@ class svcEDSD(svm.SVC):
         return(self.class_decision_function((X-self._b)/self._a, class_id=class_id))
        
     
-    def expand(self, N1, processes = 4, verbose = False, animate = False,  neighbours = []) :
+    def expand(self, N1, processes = 4, verbose = False, animate = False, new_bounds = None, neighbours = []) :
         """
         Create a new classifier from the current one by adding N1 new points
 
@@ -626,6 +626,13 @@ class svcEDSD(svm.SVC):
         X = self.trainingSet.tolist()
         y = self.trainingSetValues.tolist()
         clf = self
+
+        _a, _b = self._a, self._b
+        
+        if new_bounds != None :    
+            self._a, self._b = np.array(new_bounds[1])-np.array(new_bounds[0]), np.array(new_bounds[0])
+
+
         
         while n < N1//processes :
                 
@@ -666,7 +673,7 @@ class svcEDSD(svm.SVC):
             if verbose : 
                 tools._advBar(int(100*(n+1)*processes/N1))
             
-            n += 1
+            n += 1    
                                         
         return(clf)
 

@@ -15,15 +15,13 @@ if __name__ == "__main__" :
  
     clf =  edsd.edsd(trifolium, X0=[[-0.5, 0], [0.25, 0.25], [0.25, -0.25]], bounds= [[-2, -2], [2, 2]], 
                             processes=10, classes = 2, verbose = True,
-                            N0 = 100, N1 = 100, svc=dict(C = 1000))
+                            N0 = 10, N1 = 300, svc=dict(C = 1000))
 
     
 
-    clf = clf.set_random_box([[-0.3, -0.3], [0.3, 0.3]])
+    clf = clf.expand(1000, processes=10, verbose = True, new_bounds = [[-0.3, -0.3], [0.3, 0.3]])
 
-    clf = clf.expand(1000, processes=10, verbose = True)
-
-    clf = clf.set_random_box([[-2, -2], [2, 2]])
+    clf = clf.set_bounds([[-2, -2], [2, 2]])
 
     ax = clf.draw(scatter = True, options = [{"levels" : [0]}], scatter_options={'marker':'x'})
     
