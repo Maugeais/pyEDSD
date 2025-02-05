@@ -598,7 +598,7 @@ class svcEDSD(svm.SVC):
         return(self.class_decision_function((X-self._b)/self._a, class_id=class_id))
        
     
-    def expand(self, N1, processes = 4, verbose = False, animate = False, new_bounds = None, neighbours = []) :
+    def expand(self, N1, processes = 4, verbose = False, animate = False, new_bounds = None, neighbours = [], func = None) :
         """
         Create a new classifier from the current one by adding N1 new points
 
@@ -621,7 +621,11 @@ class svcEDSD(svm.SVC):
 
         if self.func == None :
             print("The original function does not exist")
-            return()
+            if func != None :
+                print("Replacing with new function")
+                self.func = func
+            else :
+                return()
         n = 0
         X = self.trainingSet.tolist()
         y = self.trainingSetValues.tolist()
