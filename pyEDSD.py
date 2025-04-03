@@ -26,7 +26,7 @@ import pickle
 
 from lib import plot, tools
 
-__version__ = "0.5.3.2"
+__version__ = "0.5.4"
 
 from functools import partial 
 import scipy.spatial as spatial
@@ -598,7 +598,7 @@ class svcEDSD(svm.SVC):
         return(self.class_decision_function((X-self._b)/self._a, class_id=class_id))
        
     
-    def expand(self, N1, processes = 4, verbose = False, animate = False, new_bounds = None, neighbours = [], func = None) :
+    def expand(self, N1, processes = 4, verbose = False, new_bounds = None, neighbours = [], func = None, tolerance=1e-16) :
         """
         Create a new classifier from the current one by adding N1 new points
 
@@ -609,8 +609,6 @@ class svcEDSD(svm.SVC):
         processes : TYPE, optional
             DESCRIPTION. The default is 4.
         verbose : TYPE, optional
-            DESCRIPTION. The default is False.
-        animate : TYPE, optional
             DESCRIPTION. The default is False.
 
         Returns
@@ -636,9 +634,9 @@ class svcEDSD(svm.SVC):
         if new_bounds != None :    
             self._a, self._b = np.array(new_bounds[1])-np.array(new_bounds[0]), np.array(new_bounds[0])
 
+        old_new_distance = 100
 
-        
-        while n < N1//processes :
+        while (n < N1//processes) and (old_new_distance > tolerance) :
                 
             if processes == 1 :
                 
@@ -673,6 +671,17 @@ class svcEDSD(svm.SVC):
                         raise
 
             clf = _fit(self.func, self.svc, X, y, self._a, self._b, neighbours)    
+
+            y_old = (self.homogenous_decision_function(X))
+            y_new = (clf.homogenous_decision_function(X))
+
+            if (y_old.shape == y_new.shape) : # In case the number of classes has changed
+                old_new_distance = (sum((y_old-y_new)**2))**0.5/len(y_old)/sum(clf.n_support_)
+            else :
+                old_new_distance = 100
+            
+            if hasattr(old_new_distance, "__len__") :
+                old_new_distance = sum(old_new_distance)
                 
             if verbose : 
                 tools._advBar(int(100*(n+1)*processes/N1))
@@ -812,7 +821,7 @@ def load(filename) :
     return(res)
     
 def edsd(func, X0=[], bounds=[], N0 = 10, N1 = 10, processes = 1, classes = 1, 
-         verbose = True, svc={}, neighbours = []) :
+         verbose = True, svc={}, neighbours = [], tolerance = 1e-16) :
     """ Explicit Design space decomposition
     
     Parameters :
@@ -907,7 +916,7 @@ def edsd(func, X0=[], bounds=[], N0 = 10, N1 = 10, processes = 1, classes = 1,
         print("\n Classes found: ", clf._classes)
         print("Number of points in each class:", [str(c) + ':' + str(len(np.where(y==c)[0])) for c in clf._classes])
         
-    clf = clf.expand(N1, processes = processes, verbose = verbose, neighbours = neighbours)
+    clf = clf.expand(N1, processes = processes, verbose = verbose, neighbours = neighbours, tolerance = tolerance)
 
     clf.removed = removed
 

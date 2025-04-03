@@ -9,12 +9,13 @@ import time
 def computation_time(processes) :
     
     diameters = []
-    clf.reset_random_pool()
     times = []
     N = range(50, 1500, 50)
-    for n in N :
+    for n in N :    
+        
+        clf.reset_random_pool()
+
         t0 = time.time()
-        # clf.reset_random_pool()
         diameters.append(clf.diameter_estimate(class_id = 0, size_random = n, processes = processes))
         times.append(time.time()-t0)
         
@@ -41,10 +42,10 @@ if __name__ == "__main__" :
     ax2 = ax1.twinx()
     
     N, vol, times = computation_time(1)
-    ax1.scatter(N, abs(1-vol/v0), c='b')
+    ax1.scatter(N, abs(1-vol/v0), c='c')
     ax2.scatter(N, times, c='c', marker="P", label="1 worker")
     N, vol, times = computation_time(20)
-    ax1.scatter(N, abs(1-vol/v0), c='r')
+    ax1.scatter(N, abs(1-vol/v0), c='m')
     ax2.scatter(N, times, c='m', marker="P", label="20 worker")
     ax1.set_yscale('log')
 
